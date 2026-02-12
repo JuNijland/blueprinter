@@ -44,7 +44,7 @@ Blueprinter is an event-driven data broker that monitors web pages for changes t
     ├── internal/
     │   ├── db/              # sqlc generated code + queries
     │   ├── blueprint/       # Blueprint generation logic
-    │   ├── crawler/         # Firecrawl integration
+    │   ├── fetcher/         # Firecrawl integration
     │   ├── scheduler/       # Watch cron scheduler
     │   ├── differ/          # Entity diff engine
     │   ├── delivery/        # Event delivery (webhook, email, Slack)

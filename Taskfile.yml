@@ -2,9 +2,10 @@ version: "3"
 
 tasks:
   dev:
-    desc: Start Next.js dev server
-    cmds:
-      - task: dev:web
+    desc: Start web and worker dev servers
+    deps:
+      - dev:web
+      - dev:worker
 
   dev:web:
     desc: Start Next.js dev server
@@ -52,3 +53,16 @@ tasks:
     dir: web
     cmds:
       - npm run build
+
+  dev:worker:
+    desc: Start Go worker dev server
+    dir: worker
+    dotenv: ['.env']
+    cmds:
+      - go run ./cmd/worker
+
+  worker:build:
+    desc: Build worker binary
+    dir: worker
+    cmds:
+      - go build -o bin/worker ./cmd/worker
