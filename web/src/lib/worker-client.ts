@@ -53,3 +53,13 @@ export async function workerTestBlueprint(
     schema_type: schemaType,
   });
 }
+
+export async function workerTriggerRun(
+  orgId: string,
+  watchId: string
+): Promise<{ run_id: string }> {
+  return workerRequest("/api/run-watch", {
+    org_id: orgId,
+    watch_id: watchId,
+  });
+}

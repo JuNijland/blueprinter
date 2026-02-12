@@ -40,12 +40,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const navItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Sources", href: "/dashboard/sources", icon: Globe },
-  { title: "Blueprints", href: "/dashboard/blueprints", icon: FileCode },
-  { title: "Watches", href: "/dashboard/watches", icon: Eye },
-  { title: "Events", href: "/dashboard/events", icon: Zap },
-  { title: "Subscriptions", href: "/dashboard/subscriptions", icon: Bell },
-  { title: "Settings", href: "/dashboard/settings", icon: Settings },
+  { title: "Sources", href: "/sources", icon: Globe },
+  { title: "Blueprints", href: "/blueprints", icon: FileCode },
+  { title: "Watches", href: "/watches", icon: Eye },
+  { title: "Events", href: "/events", icon: Zap },
+  { title: "Subscriptions", href: "/subscriptions", icon: Bell },
+  { title: "Settings", href: "/settings", icon: Settings },
 ];
 
 interface OrgInfo {
@@ -144,7 +144,7 @@ export function AppSidebar({
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.title}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href || pathname.startsWith(item.href + "/")} tooltip={item.title}>
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.title}</span>

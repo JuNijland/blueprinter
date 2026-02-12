@@ -13,6 +13,7 @@ func NewServer(port, apiKey string, h *Handlers, logger *slog.Logger) *http.Serv
 	mux.HandleFunc("POST /api/fetch-html", h.HandleFetchHTML)
 	mux.HandleFunc("POST /api/generate-blueprint", h.HandleGenerateBlueprint)
 	mux.HandleFunc("POST /api/test-blueprint", h.HandleTestBlueprint)
+	mux.HandleFunc("POST /api/run-watch", h.HandleRunWatch)
 
 	var handler http.Handler = mux
 	handler = authMiddleware(apiKey, handler)

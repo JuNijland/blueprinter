@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
   const { headers } = await authkit(request, {
-    eagerAuth: request.nextUrl.pathname.startsWith("/dashboard"),
+    eagerAuth: request.nextUrl.pathname !== "/" && !request.nextUrl.pathname.startsWith("/auth"),
   });
 
   return handleAuthkitHeaders(request, headers);

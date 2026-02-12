@@ -13,7 +13,10 @@ import (
 	"github.com/blueprinter/worker/internal/api"
 	"github.com/blueprinter/worker/internal/blueprint"
 	"github.com/blueprinter/worker/internal/config"
+	"github.com/blueprinter/worker/internal/db"
+	"github.com/blueprinter/worker/internal/db/dbgen"
 	"github.com/blueprinter/worker/internal/fetcher"
+	"github.com/blueprinter/worker/internal/scheduler"
 )
 
 func main() {
@@ -31,6 +34,20 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	// Database
+	pool, err := db.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("connecting to database: %w", err)
+	}
+	defer pool.Close()
+	logger.Info("database connected")
+
+	queries := dbgen.New(pool)
+
+	// External clients
 	fetcherClient, err := fetcher.NewClient(cfg.FirecrawlAPIKey, logger)
 	if err != nil {
 		return fmt.Errorf("creating fetcher client: %w", err)
@@ -38,14 +55,20 @@ func run(logger *slog.Logger) error {
 
 	openaiClient := blueprint.NewOpenAIClient(cfg.OpenAIAPIKey, cfg.OpenAIModel, logger)
 
-	handlers := api.NewHandlers(fetcherClient, openaiClient, logger)
+	// Scheduler
+	executor := scheduler.NewExecutor(queries, fetcherClient, logger)
+	sched := scheduler.NewScheduler(executor, queries, logger)
+
+	// HTTP server
+	handlers := api.NewHandlers(fetcherClient, openaiClient, sched, logger)
 	srv := api.NewServer(cfg.Port, cfg.WorkerAPIKey, handlers, logger)
 
-	// Graceful shutdown
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
 	errCh := make(chan error, 1)
+
+	// Start scheduler in background
+	go sched.Run(ctx)
+
+	// Start HTTP server
 	go func() {
 		logger.Info("worker starting", "port", cfg.Port)
 		errCh <- srv.ListenAndServe()

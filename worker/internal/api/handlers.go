@@ -7,21 +7,24 @@ import (
 
 	"github.com/blueprinter/worker/internal/blueprint"
 	"github.com/blueprinter/worker/internal/fetcher"
+	"github.com/blueprinter/worker/internal/scheduler"
 )
 
 // Handlers holds dependencies for API handlers.
 type Handlers struct {
-	fetcher *fetcher.Client
-	openai  *blueprint.OpenAIClient
-	logger  *slog.Logger
+	fetcher   *fetcher.Client
+	openai    *blueprint.OpenAIClient
+	scheduler *scheduler.Scheduler
+	logger    *slog.Logger
 }
 
 // NewHandlers creates a new Handlers instance.
-func NewHandlers(fetcher *fetcher.Client, openai *blueprint.OpenAIClient, logger *slog.Logger) *Handlers {
+func NewHandlers(fetcher *fetcher.Client, openai *blueprint.OpenAIClient, sched *scheduler.Scheduler, logger *slog.Logger) *Handlers {
 	return &Handlers{
-		fetcher: fetcher,
-		openai:  openai,
-		logger:  logger,
+		fetcher:   fetcher,
+		openai:    openai,
+		scheduler: sched,
+		logger:    logger,
 	}
 }
 
@@ -169,6 +172,48 @@ func (h *Handlers) HandleTestBlueprint(w http.ResponseWriter, r *http.Request) {
 		Entities: entities,
 		Errors:   errors,
 	})
+}
+
+type runWatchRequest struct {
+	OrgID   string `json:"org_id"`
+	WatchID string `json:"watch_id"`
+}
+
+type runWatchResponse struct {
+	RunID string `json:"run_id"`
+}
+
+// HandleRunWatch triggers a manual watch run.
+func (h *Handlers) HandleRunWatch(w http.ResponseWriter, r *http.Request) {
+	var req runWatchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	if req.OrgID == "" || req.WatchID == "" {
+		writeError(w, http.StatusBadRequest, "org_id and watch_id are required")
+		return
+	}
+
+	if h.scheduler == nil {
+		writeError(w, http.StatusServiceUnavailable, "scheduler not available")
+		return
+	}
+
+	runID, err := h.scheduler.RunSingle(r.Context(), req.WatchID)
+	if err != nil {
+		h.logger.Error("run watch failed", "watch_id", req.WatchID, "error", err)
+		// Still return runID if we got one (run was created but execution failed)
+		if runID != "" {
+			writeJSON(w, http.StatusOK, runWatchResponse{RunID: runID})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to run watch: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, runWatchResponse{RunID: runID})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
