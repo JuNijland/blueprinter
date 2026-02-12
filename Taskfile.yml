@@ -1,0 +1,54 @@
+version: "3"
+
+tasks:
+  dev:
+    desc: Start Next.js dev server
+    cmds:
+      - task: dev:web
+
+  dev:web:
+    desc: Start Next.js dev server
+    dir: web
+    cmds:
+      - npm run dev
+
+  db:up:
+    desc: Start PostgreSQL
+    cmds:
+      - docker compose up -d postgres
+
+  db:migrate:
+    desc: Run Drizzle migrations
+    dir: web
+    cmds:
+      - npx drizzle-kit migrate
+
+  db:generate:
+    desc: Generate Drizzle migrations from schema
+    dir: web
+    cmds:
+      - npx drizzle-kit generate
+
+  db:push:
+    desc: Push schema directly to database (dev only)
+    dir: web
+    cmds:
+      - npx drizzle-kit push
+
+  db:studio:
+    desc: Open Drizzle Studio (DB browser)
+    dir: web
+    cmds:
+      - npx drizzle-kit studio
+
+  web:install:
+    desc: Install web dependencies
+    dir: web
+    cmds:
+      - npm install
+
+  web:build:
+    desc: Build Next.js for production
+    dir: web
+    cmds:
+      - npm run build
