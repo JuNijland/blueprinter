@@ -19,8 +19,6 @@ async function getOrgId(): Promise<string> {
   return organizationId;
 }
 
-// --- Worker calls ---
-
 export async function fetchAndGenerateAction(url: string, schemaType: string) {
   const orgId = await getOrgId();
   const { cleaned_html } = await workerFetchHtml(orgId, url);
@@ -35,8 +33,6 @@ export async function testBlueprintAction(
   const orgId = await getOrgId();
   return workerTestBlueprint(orgId, url, extractionRules, schemaType);
 }
-
-// --- CRUD ---
 
 export async function listBlueprints() {
   const orgId = await getOrgId();

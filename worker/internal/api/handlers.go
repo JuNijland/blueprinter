@@ -25,8 +25,6 @@ func NewHandlers(fetcher *fetcher.Client, openai *blueprint.OpenAIClient, logger
 	}
 }
 
-// --- Request/Response types ---
-
 type fetchHTMLRequest struct {
 	OrgID string `json:"org_id"`
 	URL   string `json:"url"`
@@ -58,8 +56,6 @@ type testBlueprintResponse struct {
 	Entities []map[string]any `json:"entities"`
 	Errors   []string         `json:"errors"`
 }
-
-// --- Handlers ---
 
 // HandleHealth returns a simple health check response.
 func (h *Handlers) HandleHealth(w http.ResponseWriter, r *http.Request) {
@@ -94,8 +90,7 @@ func (h *Handlers) HandleFetchHTML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, fetchHTMLResponse{
-		CleanedHTML: cleanedHTML,
-	})
+		CleanedHTML: cleanedHTML})
 }
 
 // HandleGenerateBlueprint generates extraction rules from cleaned HTML using OpenAI.
@@ -175,8 +170,6 @@ func (h *Handlers) HandleTestBlueprint(w http.ResponseWriter, r *http.Request) {
 		Errors:   errors,
 	})
 }
-
-// --- Helpers ---
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
