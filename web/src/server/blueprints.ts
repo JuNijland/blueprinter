@@ -4,11 +4,7 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { db } from "@/db";
 import { blueprints } from "@/db/schema";
 import { eq, and, isNull, desc } from "drizzle-orm";
-import {
-  workerFetchHtml,
-  workerGenerateBlueprint,
-  workerTestBlueprint,
-} from "@/lib/worker-client";
+import { workerFetchHtml, workerGenerateBlueprint, workerTestBlueprint } from "@/lib/worker-client";
 import type { ExtractionRules } from "@/lib/types";
 
 async function getOrgId(): Promise<string> {
@@ -28,7 +24,7 @@ export async function fetchAndGenerateAction(url: string, schemaType: string) {
 export async function testBlueprintAction(
   url: string,
   extractionRules: ExtractionRules,
-  schemaType: string
+  schemaType: string,
 ) {
   const orgId = await getOrgId();
   return workerTestBlueprint(orgId, url, extractionRules, schemaType);
@@ -48,13 +44,7 @@ export async function getBlueprint(id: string) {
   const rows = await db
     .select()
     .from(blueprints)
-    .where(
-      and(
-        eq(blueprints.id, id),
-        eq(blueprints.orgId, orgId),
-        isNull(blueprints.deletedAt)
-      )
-    )
+    .where(and(eq(blueprints.id, id), eq(blueprints.orgId, orgId), isNull(blueprints.deletedAt)))
     .limit(1);
   return rows[0] ?? null;
 }

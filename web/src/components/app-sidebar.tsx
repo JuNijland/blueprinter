@@ -97,9 +97,7 @@ export function AppSidebar({
                       {currentOrganization?.name ?? "No organization"}
                     </span>
                   </div>
-                  {organizations.length > 1 && (
-                    <ChevronsUpDown className="ml-auto size-4" />
-                  )}
+                  {organizations.length > 1 && <ChevronsUpDown className="ml-auto size-4" />}
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               {organizations.length > 1 && (
@@ -126,9 +124,7 @@ export function AppSidebar({
                         <Building2 className="size-4 shrink-0" />
                       </div>
                       <span className="truncate">{org.name}</span>
-                      {org.id === currentOrganization?.id && (
-                        <Check className="ml-auto size-4" />
-                      )}
+                      {org.id === currentOrganization?.id && <Check className="ml-auto size-4" />}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -166,19 +162,13 @@ export function AppSidebar({
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarFallback className="rounded-lg">
-                      {initials}
-                    </AvatarFallback>
+                    <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {[user.firstName, user.lastName]
-                        .filter(Boolean)
-                        .join(" ") || user.email}
+                      {[user.firstName, user.lastName].filter(Boolean).join(" ") || user.email}
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {user.email}
-                    </span>
+                    <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </SidebarMenuButton>

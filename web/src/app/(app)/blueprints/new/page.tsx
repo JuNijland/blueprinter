@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -20,10 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  fetchAndGenerateAction,
-  createBlueprint,
-} from "@/server/blueprints";
+import { fetchAndGenerateAction, createBlueprint } from "@/server/blueprints";
 import type { ExtractionRules } from "@/lib/types";
 
 type Step = "configure" | "generating" | "preview" | "save";
@@ -45,8 +36,7 @@ export default function NewBlueprintPage() {
   const [url, setUrl] = useState("");
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
-  const [extractionRules, setExtractionRules] =
-    useState<ExtractionRules | null>(null);
+  const [extractionRules, setExtractionRules] = useState<ExtractionRules | null>(null);
   const [testResults, setTestResults] = useState<Record<string, unknown>[]>([]);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -122,9 +112,7 @@ export default function NewBlueprintPage() {
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
+        <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
       )}
 
       {/* Step 1: Configure */}
@@ -132,9 +120,7 @@ export default function NewBlueprintPage() {
         <Card>
           <CardHeader>
             <CardTitle>Configure</CardTitle>
-            <CardDescription>
-              Enter the URL of a product listing page to analyze.
-            </CardDescription>
+            <CardDescription>Enter the URL of a product listing page to analyze.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -193,13 +179,8 @@ export default function NewBlueprintPage() {
                       {testResults.slice(0, 10).map((entity, i) => (
                         <TableRow key={i}>
                           {SCHEMA_FIELDS.map((field) => (
-                            <TableCell
-                              key={field}
-                              className="max-w-[200px] truncate text-sm"
-                            >
-                              {entity[field] != null
-                                ? String(entity[field])
-                                : "—"}
+                            <TableCell key={field} className="max-w-[200px] truncate text-sm">
+                              {entity[field] != null ? String(entity[field]) : "—"}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -253,9 +234,7 @@ export default function NewBlueprintPage() {
         <Card>
           <CardHeader>
             <CardTitle>Save Blueprint</CardTitle>
-            <CardDescription>
-              Give your blueprint a name and save it.
-            </CardDescription>
+            <CardDescription>Give your blueprint a name and save it.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -268,17 +247,10 @@ export default function NewBlueprintPage() {
               />
             </div>
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setStep("preview")}
-                disabled={saving}
-              >
+              <Button variant="outline" onClick={() => setStep("preview")} disabled={saving}>
                 Back
               </Button>
-              <Button
-                onClick={handleSave}
-                disabled={!name.trim() || saving}
-              >
+              <Button onClick={handleSave} disabled={!name.trim() || saving}>
                 {saving ? "Saving..." : "Save Blueprint"}
               </Button>
             </div>

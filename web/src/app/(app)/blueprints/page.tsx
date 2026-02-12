@@ -73,9 +73,7 @@ export default async function BlueprintsPage() {
                   </TableCell>
                   <TableCell className="text-sm">{bp.schemaType}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[bp.status] ?? "secondary"}>
-                      {bp.status}
-                    </Badge>
+                    <Badge variant={statusVariant[bp.status] ?? "secondary"}>{bp.status}</Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {bp.createdAt.toLocaleDateString()}

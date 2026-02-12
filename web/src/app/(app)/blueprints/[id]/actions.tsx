@@ -3,18 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  updateBlueprintStatus,
-  deleteBlueprint,
-} from "@/server/blueprints";
+import { updateBlueprintStatus, deleteBlueprint } from "@/server/blueprints";
 
-export function BlueprintActions({
-  id,
-  status,
-}: {
-  id: string;
-  status: string;
-}) {
+export function BlueprintActions({ id, status }: { id: string; status: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -46,21 +37,11 @@ export function BlueprintActions({
         </Button>
       )}
       {status === "active" && (
-        <Button
-          variant="outline"
-          onClick={handleArchive}
-          disabled={loading}
-          size="sm"
-        >
+        <Button variant="outline" onClick={handleArchive} disabled={loading} size="sm">
           Archive
         </Button>
       )}
-      <Button
-        variant="destructive"
-        onClick={handleDelete}
-        disabled={loading}
-        size="sm"
-      >
+      <Button variant="destructive" onClick={handleDelete} disabled={loading} size="sm">
         Delete
       </Button>
     </div>

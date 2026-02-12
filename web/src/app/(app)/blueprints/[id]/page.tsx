@@ -1,13 +1,7 @@
 import { notFound } from "next/navigation";
 import { getBlueprint } from "@/server/blueprints";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BlueprintActions } from "./actions";
 import { TestPanel } from "./test-panel";
 
@@ -18,11 +12,7 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
   archived: "outline",
 };
 
-export default async function BlueprintDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function BlueprintDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const bp = await getBlueprint(id);
 
@@ -53,9 +43,7 @@ export default async function BlueprintDetailPage({
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status</span>
-              <Badge variant={statusVariant[bp.status] ?? "secondary"}>
-                {bp.status}
-              </Badge>
+              <Badge variant={statusVariant[bp.status] ?? "secondary"}>{bp.status}</Badge>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Schema Type</span>
