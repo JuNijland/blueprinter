@@ -4,13 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -44,9 +38,7 @@ export function TestPanel({
 }) {
   const [testUrl, setTestUrl] = useState(blueprintUrl);
   const [testing, setTesting] = useState(false);
-  const [results, setResults] = useState<Record<string, unknown>[] | null>(
-    null
-  );
+  const [results, setResults] = useState<Record<string, unknown>[] | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
   async function handleTest() {
@@ -55,11 +47,7 @@ export function TestPanel({
     setResults(null);
 
     try {
-      const res = await testBlueprintAction(
-        testUrl,
-        extractionRules,
-        schemaType
-      );
+      const res = await testBlueprintAction(testUrl, extractionRules, schemaType);
       setResults(res.entities ?? []);
       setErrors(res.errors ?? []);
     } catch (err) {
@@ -73,9 +61,7 @@ export function TestPanel({
     <Card>
       <CardHeader>
         <CardTitle>Test Blueprint</CardTitle>
-        <CardDescription>
-          Run this blueprint against a URL to verify extraction.
-        </CardDescription>
+        <CardDescription>Run this blueprint against a URL to verify extraction.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-3">
@@ -90,10 +76,7 @@ export function TestPanel({
             />
           </div>
           <div className="flex items-end">
-            <Button
-              onClick={handleTest}
-              disabled={!testUrl.trim() || testing}
-            >
+            <Button onClick={handleTest} disabled={!testUrl.trim() || testing}>
               {testing ? "Testing..." : "Run Test"}
             </Button>
           </div>
@@ -109,9 +92,7 @@ export function TestPanel({
 
         {results !== null && (
           <div>
-            <p className="mb-2 text-sm text-muted-foreground">
-              {results.length} entities found
-            </p>
+            <p className="mb-2 text-sm text-muted-foreground">{results.length} entities found</p>
             {results.length > 0 && (
               <div className="overflow-x-auto rounded-md border">
                 <Table>
@@ -126,13 +107,8 @@ export function TestPanel({
                     {results.slice(0, 20).map((entity, i) => (
                       <TableRow key={i}>
                         {SCHEMA_FIELDS.map((field) => (
-                          <TableCell
-                            key={field}
-                            className="max-w-[200px] truncate text-sm"
-                          >
-                            {entity[field] != null
-                              ? String(entity[field])
-                              : "—"}
+                          <TableCell key={field} className="max-w-[200px] truncate text-sm">
+                            {entity[field] != null ? String(entity[field]) : "—"}
                           </TableCell>
                         ))}
                       </TableRow>

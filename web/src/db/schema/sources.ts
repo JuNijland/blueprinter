@@ -1,12 +1,4 @@
-import {
-  pgTable,
-  text,
-  uuid,
-  timestamp,
-  jsonb,
-  uniqueIndex,
-  index,
-} from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const sources = pgTable(
@@ -20,12 +12,8 @@ export const sources = pgTable(
     baseUrl: text("base_url").notNull(),
     description: text("description"),
     settings: jsonb("settings").notNull().default({}),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
@@ -33,5 +21,5 @@ export const sources = pgTable(
     index("idx_sources_org_id")
       .on(table.orgId)
       .where(sql`${table.deletedAt} IS NULL`),
-  ]
+  ],
 );

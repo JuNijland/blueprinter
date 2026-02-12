@@ -188,7 +188,7 @@ func removeRedundantElements(n *html.Node) {
 func removeSVGContent(n *html.Node) {
 	for c := n.FirstChild; c != nil; {
 		next := c.NextSibling
-		if c.Type == html.ElementNode && strings.ToLower(c.Data) == "svg" {
+		if c.Type == html.ElementNode && strings.EqualFold(c.Data, "svg") {
 			removeNode(c)
 			c = next
 			continue

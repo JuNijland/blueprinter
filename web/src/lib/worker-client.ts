@@ -23,7 +23,7 @@ async function workerRequest<T>(path: string, body: Record<string, unknown>): Pr
 
 export async function workerFetchHtml(
   orgId: string,
-  url: string
+  url: string,
 ): Promise<{ cleaned_html: string }> {
   return workerRequest("/api/fetch-html", { org_id: orgId, url });
 }
@@ -31,7 +31,7 @@ export async function workerFetchHtml(
 export async function workerGenerateBlueprint(
   orgId: string,
   cleanedHtml: string,
-  schemaType: string
+  schemaType: string,
 ): Promise<{ extraction_rules: ExtractionRules; test_results: Record<string, unknown>[] }> {
   return workerRequest("/api/generate-blueprint", {
     org_id: orgId,
@@ -44,7 +44,7 @@ export async function workerTestBlueprint(
   orgId: string,
   url: string,
   extractionRules: ExtractionRules,
-  schemaType: string
+  schemaType: string,
 ): Promise<{ entities: Record<string, unknown>[]; errors: string[] }> {
   return workerRequest("/api/test-blueprint", {
     org_id: orgId,

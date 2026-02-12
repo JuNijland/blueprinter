@@ -66,3 +66,83 @@ tasks:
     dir: worker
     cmds:
       - go build -o bin/worker ./cmd/worker
+
+  # --- Setup ---
+
+  setup:
+    desc: Install all dependencies and tools
+    cmds:
+      - task: setup:web
+      - task: setup:worker
+
+  setup:web:
+    desc: Install web dependencies
+    dir: web
+    cmds:
+      - npm install
+
+  setup:worker:
+    desc: Install Go dev tools
+    cmds:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62
+      - go install golang.org/x/tools/cmd/goimports@latest
+
+  # --- Format (auto-fix) ---
+
+  fmt:
+    desc: Auto-fix formatting and lint issues
+    cmds:
+      - task: fmt:web
+      - task: fmt:worker
+
+  fmt:web:
+    desc: Auto-fix web formatting
+    dir: web
+    cmds:
+      - npx prettier --write "src/**/*.{ts,tsx,js,mjs}"
+      - npx eslint --fix .
+
+  fmt:worker:
+    desc: Auto-fix Go formatting
+    dir: worker
+    cmds:
+      - gofmt -w .
+      - goimports -w -local github.com/blueprinter/worker .
+      - golangci-lint run --fix ./...
+
+  # --- Lint (check-only, for CI) ---
+
+  lint:
+    desc: Run all linters (check-only)
+    cmds:
+      - task: lint:web
+      - task: lint:worker
+
+  lint:web:
+    desc: Run web linters
+    dir: web
+    cmds:
+      - npx prettier --check "src/**/*.{ts,tsx,js,mjs}"
+      - npx eslint .
+      - npx tsc --noEmit
+
+  lint:worker:
+    desc: Run Go linters
+    dir: worker
+    cmds:
+      - golangci-lint run ./...
+      - go vet ./...
+      - go build ./...
+
+  # --- Test ---
+
+  test:
+    desc: Run all tests
+    cmds:
+      - task: test:worker
+
+  test:worker:
+    desc: Run Go tests
+    dir: worker
+    cmds:
+      - go test -race -count=1 ./...
