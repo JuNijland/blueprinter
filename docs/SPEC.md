@@ -49,7 +49,7 @@ Key properties:
 - Includes `test_url` — the URL used to generate/test the blueprint
 - Stores the XPath mappings as JSONB (`extraction_rules`)
 
-Blueprint generation happens exclusively in the Go worker. The web app calls the worker via gRPC to:
+Blueprint generation happens exclusively in the Go worker. The web app calls the worker via its HTTP API to:
 1. Fetch and clean HTML from a URL (via Firecrawl)
 2. Generate a blueprint from the HTML + schema
 3. Test a blueprint against a URL to verify extraction works
@@ -186,20 +186,30 @@ After max retries, status becomes `failed` and stays there. The subscription is 
 
 ## Communication: Web ↔ Worker
 
-### ConnectRPC
+### HTTP API
 
-The web app communicates with the worker via ConnectRPC (HTTP-based gRPC).
+The web app communicates with the worker via a standard JSON HTTP API. The worker exposes internal endpoints, authenticated with a shared API key (`Authorization: Bearer <WORKER_API_KEY>`). The worker is not exposed to the internet — it runs on a private network or the same host as the web app, accessible only by the Next.js server.
 
-Service definition (`BlueprintService`):
-- `FetchHTML(url) → { html, cleaned_html, status_code }` — Fetch and clean a page via Firecrawl
-- `GenerateBlueprint(cleaned_html, schema_type) → { extraction_rules, test_results }` — Generate a blueprint using OpenAI
-- `TestBlueprint(url, extraction_rules, schema_type) → { entities, errors }` — Test a blueprint against a live URL
+The web app passes `org_id` (from the WorkOS session) in each request body so the worker can scope all database writes.
+
+Endpoints:
+- `POST /api/v1/fetch-html` — Fetch and clean a page via Firecrawl
+  - Request: `{ org_id, url }`
+  - Response: `{ html, cleaned_html, status_code }`
+- `POST /api/v1/generate-blueprint` — Generate a blueprint using OpenAI
+  - Request: `{ org_id, cleaned_html, schema_type }`
+  - Response: `{ extraction_rules, test_results }`
+- `POST /api/v1/test-blueprint` — Test a blueprint against a live URL
+  - Request: `{ org_id, url, extraction_rules, schema_type }`
+  - Response: `{ entities, errors }`
 
 The worker is the **only** service that talks to Firecrawl and OpenAI. The web app never makes these calls directly.
 
-### Future RPCs
+### Future Endpoints
 
-- `RepairBlueprint(blueprint_id) → { updated_rules, diff }` — Self-healing when extraction breaks
+- `POST /api/v1/repair-blueprint` — Self-healing when extraction breaks
+  - Request: `{ org_id, blueprint_id }`
+  - Response: `{ updated_rules, diff }`
 
 ---
 
@@ -223,7 +233,7 @@ Based on the shadcn sidebar-7 example. Sidebar navigation with:
 2. Enter a URL from that source
 3. Select an entity schema (e.g., ecommerce_product)
 4. Choose extraction mode: single item or list
-5. Click "Generate" — calls worker via gRPC
+5. Click "Generate" — calls worker HTTP API
 6. Preview extracted data
 7. Save or adjust and regenerate
 

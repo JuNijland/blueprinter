@@ -7,7 +7,7 @@ Blueprinter is an event-driven data broker that monitors web pages for changes t
 ## Tech Stack
 
 - **Web app**: Next.js 15 (App Router), TypeScript (strict), shadcn/ui, Drizzle ORM
-- **Worker**: Go 1.22+, sqlc for database queries, ConnectRPC for gRPC
+- **Worker**: Go 1.22+, sqlc for database queries, standard HTTP API (`net/http`)
 - **Database**: PostgreSQL 16
 - **Auth**: WorkOS (AuthKit) — do not build custom auth
 - **HTML fetching**: Firecrawl (via worker only)
@@ -27,8 +27,6 @@ Blueprinter is an event-driven data broker that monitors web pages for changes t
 │   ├── SCHEMA.md            # Database schema design
 │   └── ARCHITECTURE.md      # Architecture decisions
 ├── migrations/              # Shared SQL migrations (plain .sql files, numbered)
-├── proto/                   # Protobuf definitions (ConnectRPC)
-│   └── blueprinter/v1/
 ├── web/                     # Next.js application
 │   ├── src/
 │   │   ├── app/             # App Router pages and layouts
@@ -46,11 +44,11 @@ Blueprinter is an event-driven data broker that monitors web pages for changes t
     ├── internal/
     │   ├── db/              # sqlc generated code + queries
     │   ├── blueprint/       # Blueprint generation logic
-    │   ├── crawler/         # Firecrawl integration
+    │   ├── fetcher/         # Firecrawl integration
     │   ├── scheduler/       # Watch cron scheduler
     │   ├── differ/          # Entity diff engine
     │   ├── delivery/        # Event delivery (webhook, email, Slack)
-    │   └── grpc/            # ConnectRPC handlers
+    │   └── api/             # HTTP API handlers
     ├── go.mod
     └── go.sum
 ```
@@ -79,7 +77,7 @@ Blueprinter is an event-driven data broker that monitors web pages for changes t
 ### Go / Worker
 
 - sqlc for all database queries — no raw SQL strings, no ORM
-- ConnectRPC (not raw gRPC) for web ↔ worker communication
+- Standard `net/http` for the worker HTTP API — no frameworks
 - Package structure: `internal/` for all packages, nothing in `pkg/`
 - Error handling: always wrap errors with `fmt.Errorf("context: %w", err)`
 - Logging: use `slog` (structured logging), no `fmt.Println` or `log`
@@ -96,12 +94,13 @@ Blueprinter is an event-driven data broker that monitors web pages for changes t
 - Foreign keys: always define them, always index them
 - Soft deletes: use `deleted_at timestamptz` where needed, not hard deletes
 
-### Proto / gRPC
+### Worker HTTP API
 
-- Proto files in `proto/blueprinter/v1/`
-- Service name: `BlueprintService`
-- Use ConnectRPC for code generation (both Go server and TypeScript client)
-- RPCs defined so far: `FetchHTML`, `GenerateBlueprint`, `TestBlueprint`
+- Worker exposes JSON endpoints under `/api/v1/`
+- Authenticated via shared API key (`Authorization: Bearer <WORKER_API_KEY>`)
+- Worker runs on private network only — not exposed to the internet
+- Web app passes `org_id` from WorkOS session in each request body
+- Endpoints: `fetch-html`, `generate-blueprint`, `test-blueprint`
 
 ### Testing
 
@@ -116,5 +115,5 @@ Blueprinter is an event-driven data broker that monitors web pages for changes t
 - Do not use `node-postgres` directly — always go through Drizzle
 - Do not sync WorkOS user/org data into our database — query WorkOS at runtime
 - Do not put business logic in API routes — use server actions or dedicated service modules
-- Do not add gRPC calls outside of the worker communication — REST/server actions for everything else
+- Do not call the worker HTTP API from client components — only from server actions
 - Do not use `any` in TypeScript — fix the types
