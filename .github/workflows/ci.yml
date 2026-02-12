@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      - name: Prettier
+        run: npx prettier --check "src/**/*.{ts,tsx,js,mjs}"
+
+      - name: ESLint
+        run: npx eslint .
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npx next build
+        env:
+          WORKOS_CLIENT_ID: dummy
+          WORKOS_API_KEY: dummy
+          WORKOS_REDIRECT_URI: http://localhost:3000/auth/callback
+          WORKOS_COOKIE_PASSWORD: "a]V3}vR#K7H&mN$pX9@wL!fQ2*dYcTzA"
+          NEXT_PUBLIC_WORKOS_REDIRECT_URI: http://localhost:3000/auth/callback
+          DATABASE_URL: postgres://localhost:5432/blueprinter
+          WORKER_URL: http://localhost:8081
+          WORKER_API_KEY: dummy
+
+  worker:
+    name: Worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: worker/go.mod
+          cache-dependency-path: worker/go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62
+          working-directory: worker
+          args: --timeout=3m
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -race -count=1 ./...

@@ -1,24 +1,11 @@
 import { redirect } from "next/navigation";
-import {
-  withAuth,
-  signOut,
-  switchToOrganization,
-  getWorkOS,
-} from "@workos-inc/authkit-nextjs";
-import {
-  SidebarProvider,
-  SidebarInset,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { withAuth, signOut, switchToOrganization, getWorkOS } from "@workos-inc/authkit-nextjs";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, organizationId } = await withAuth({ ensureSignedIn: true });
 
   if (!user) {
@@ -33,9 +20,7 @@ export default async function DashboardLayout({
       userId: user.id,
       statuses: ["active"],
     }),
-    organizationId
-      ? workos.organizations.getOrganization(organizationId)
-      : null,
+    organizationId ? workos.organizations.getOrganization(organizationId) : null,
   ]);
 
   const organizations = membershipsResponse.data.map((m) => ({
@@ -61,9 +46,7 @@ export default async function DashboardLayout({
           lastName: user.lastName,
           email: user.email,
         }}
-        currentOrganization={
-          currentOrg ? { id: currentOrg.id, name: currentOrg.name } : null
-        }
+        currentOrganization={currentOrg ? { id: currentOrg.id, name: currentOrg.name } : null}
         organizations={organizations}
         signOutAction={handleSignOut}
         switchOrganizationAction={handleSwitchOrganization}
