@@ -19,11 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { pauseWatch, resumeWatch, deleteWatch, triggerWatchRun } from "@/server/watches";
 
-export function WatchRunActions({
-  errorMessage,
-}: {
-  errorMessage: string | null;
-}) {
+export function WatchRunActions({ errorMessage }: { errorMessage: string | null }) {
   const [errorOpen, setErrorOpen] = useState(false);
 
   if (!errorMessage) return null;
@@ -55,13 +51,7 @@ export function WatchRunActions({
   );
 }
 
-export function EntityActions({
-  externalId,
-  content,
-}: {
-  externalId: string;
-  content: unknown;
-}) {
+export function EntityActions({ externalId, content }: { externalId: string; content: unknown }) {
   const [contentOpen, setContentOpen] = useState(false);
   const formatted = JSON.stringify(content, null, 2);
 
@@ -82,6 +72,37 @@ export function EntityActions({
           <DialogHeader>
             <DialogTitle>Entity Content</DialogTitle>
             <DialogDescription className="font-mono">{externalId}</DialogDescription>
+          </DialogHeader>
+          <pre className="max-h-[500px] overflow-auto rounded-md bg-muted p-4 text-sm whitespace-pre-wrap break-words">
+            {formatted}
+          </pre>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+export function EventActions({ payload }: { payload: unknown }) {
+  const [payloadOpen, setPayloadOpen] = useState(false);
+  const formatted = JSON.stringify(payload, null, 2);
+
+  return (
+    <>
+      <DropdownMenu>
+        <ActionMenuTrigger />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setPayloadOpen(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            View Payload
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={payloadOpen} onOpenChange={setPayloadOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Event Payload</DialogTitle>
+            <DialogDescription>Full JSON payload for this event.</DialogDescription>
           </DialogHeader>
           <pre className="max-h-[500px] overflow-auto rounded-md bg-muted p-4 text-sm whitespace-pre-wrap break-words">
             {formatted}

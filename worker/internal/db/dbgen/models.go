@@ -37,6 +37,17 @@ type Entity struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+type Event struct {
+	ID         pgtype.UUID        `json:"id"`
+	OrgID      string             `json:"org_id"`
+	EventType  string             `json:"event_type"`
+	WatchID    pgtype.UUID        `json:"watch_id"`
+	WatchRunID pgtype.UUID        `json:"watch_run_id"`
+	EntityID   pgtype.UUID        `json:"entity_id"`
+	Payload    []byte             `json:"payload"`
+	OccurredAt pgtype.Timestamptz `json:"occurred_at"`
+}
+
 type Watch struct {
 	ID                  pgtype.UUID        `json:"id"`
 	OrgID               string             `json:"org_id"`
@@ -64,5 +75,6 @@ type WatchRun struct {
 	EntitiesNew     pgtype.Int4        `json:"entities_new"`
 	EntitiesChanged pgtype.Int4        `json:"entities_changed"`
 	EntitiesRemoved pgtype.Int4        `json:"entities_removed"`
+	EventsEmitted   pgtype.Int4        `json:"events_emitted"`
 	ErrorMessage    pgtype.Text        `json:"error_message"`
 }

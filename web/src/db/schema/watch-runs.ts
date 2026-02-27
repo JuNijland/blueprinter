@@ -19,6 +19,7 @@ export const watchRuns = pgTable(
     entitiesNew: integer("entities_new"),
     entitiesChanged: integer("entities_changed"),
     entitiesRemoved: integer("entities_removed"),
+    eventsEmitted: integer("events_emitted"),
     errorMessage: text("error_message"),
   },
   (table) => [

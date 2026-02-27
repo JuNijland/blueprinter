@@ -15,6 +15,7 @@ import (
 	"github.com/blueprinter/worker/internal/config"
 	"github.com/blueprinter/worker/internal/db"
 	"github.com/blueprinter/worker/internal/db/dbgen"
+	"github.com/blueprinter/worker/internal/emitter"
 	"github.com/blueprinter/worker/internal/fetcher"
 	"github.com/blueprinter/worker/internal/scheduler"
 )
@@ -55,8 +56,11 @@ func run(logger *slog.Logger) error {
 
 	openaiClient := blueprint.NewOpenAIClient(cfg.OpenAIAPIKey, cfg.OpenAIModel, logger)
 
+	// Emitter
+	eventEmitter := emitter.New(queries, logger)
+
 	// Scheduler
-	executor := scheduler.NewExecutor(queries, fetcherClient, logger)
+	executor := scheduler.NewExecutor(queries, fetcherClient, eventEmitter, logger)
 	sched := scheduler.NewScheduler(executor, queries, logger)
 
 	// HTTP server

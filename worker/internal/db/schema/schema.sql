@@ -59,5 +59,17 @@ CREATE TABLE watch_runs (
     entities_new    integer,
     entities_changed integer,
     entities_removed integer,
+    events_emitted  integer,
     error_message   text
+);
+
+CREATE TABLE events (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id          text NOT NULL,
+    event_type      text NOT NULL,
+    watch_id        uuid NOT NULL REFERENCES watches(id),
+    watch_run_id    uuid REFERENCES watch_runs(id),
+    entity_id       uuid REFERENCES entities(id),
+    payload         jsonb NOT NULL,
+    occurred_at     timestamptz NOT NULL DEFAULT now()
 );

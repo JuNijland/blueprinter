@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import cronstrue from "cronstrue";
 import { ExternalLink } from "lucide-react";
-import { getWatch, listWatchRuns, listWatchEntities } from "@/server/watches";
+import { getWatch, listWatchRuns, listWatchEntities, listWatchEvents } from "@/server/watches";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Status, StatusIndicator, StatusLabel, type StatusType } from "@/components/ui/status";
-import { WatchActions, WatchRunActions, EntityActions } from "./actions";
+import { WatchActions, WatchRunActions, EntityActions, EventActions } from "./actions";
 
 function getWatchStatusType(status: string): StatusType {
   switch (status) {
@@ -42,6 +42,32 @@ function getRunStatusType(status: string): StatusType {
   }
 }
 
+function getEventTypeLabel(eventType: string): string {
+  switch (eventType) {
+    case "entity_appeared":
+      return "Appeared";
+    case "entity_changed":
+      return "Changed";
+    case "entity_disappeared":
+      return "Disappeared";
+    default:
+      return eventType;
+  }
+}
+
+function getEventTypeStatusType(eventType: string): StatusType {
+  switch (eventType) {
+    case "entity_appeared":
+      return "online";
+    case "entity_changed":
+      return "degraded";
+    case "entity_disappeared":
+      return "offline";
+    default:
+      return "maintenance";
+  }
+}
+
 function getStatusLabel(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
@@ -51,7 +77,11 @@ export default async function WatchDetailPage({ params }: { params: Promise<{ id
   const watch = await getWatch(id);
   if (!watch) notFound();
 
-  const [runs, entities] = await Promise.all([listWatchRuns(id), listWatchEntities(id)]);
+  const [runs, entities, events] = await Promise.all([
+    listWatchRuns(id),
+    listWatchEntities(id),
+    listWatchEvents(id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -93,9 +123,7 @@ export default async function WatchDetailPage({ params }: { params: Promise<{ id
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Schedule</p>
-            <p className="mt-1 text-sm font-medium">
-              {cronstrue.toString(watch.schedule)}
-            </p>
+            <p className="mt-1 text-sm font-medium">{cronstrue.toString(watch.schedule)}</p>
             <p className="text-xs font-mono text-muted-foreground">{watch.schedule}</p>
           </div>
           <div>
@@ -112,6 +140,7 @@ export default async function WatchDetailPage({ params }: { params: Promise<{ id
         <TabsList>
           <TabsTrigger value="runs">Recent Runs ({runs.length})</TabsTrigger>
           <TabsTrigger value="entities">Entities ({entities.length})</TabsTrigger>
+          <TabsTrigger value="events">Events ({events.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="runs" className="mt-4">
@@ -200,13 +229,63 @@ export default async function WatchDetailPage({ params }: { params: Promise<{ id
                         {entity.lastSeenAt.toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        <EntityActions
-                          externalId={entity.externalId}
-                          content={entity.content}
-                        />
+                        <EntityActions externalId={entity.externalId} content={entity.content} />
                       </TableCell>
                     </TableRow>
                   ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="events" className="mt-4">
+          {events.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No events yet. Events are emitted when entities appear, change, or disappear.
+            </p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Entity</TableHead>
+                    <TableHead>Changes</TableHead>
+                    <TableHead>Occurred</TableHead>
+                    <TableHead className="w-[70px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {events.map((event) => {
+                    const payload = event.payload as Record<string, unknown> | null;
+                    const entity = payload?.entity as Record<string, unknown> | undefined;
+                    const entityName =
+                      (entity?.name as string) ?? (entity?.external_id as string) ?? "—";
+                    const changes = payload?.changes as Record<string, unknown>[] | undefined;
+                    const changeSummary = changes
+                      ? changes.map((c) => c.field as string).join(", ")
+                      : "—";
+
+                    return (
+                      <TableRow key={event.id}>
+                        <TableCell>
+                          <Status status={getEventTypeStatusType(event.eventType)}>
+                            <StatusIndicator />
+                            <StatusLabel>{getEventTypeLabel(event.eventType)}</StatusLabel>
+                          </Status>
+                        </TableCell>
+                        <TableCell className="text-sm">{entityName}</TableCell>
+                        <TableCell className="text-sm">{changeSummary}</TableCell>
+                        <TableCell className="text-sm">
+                          {event.occurredAt.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <EventActions payload={event.payload} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

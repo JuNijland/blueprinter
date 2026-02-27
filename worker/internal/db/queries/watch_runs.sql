@@ -11,5 +11,6 @@ SET status = $2,
     entities_new = $4,
     entities_changed = $5,
     entities_removed = $6,
-    error_message = $7
+    events_emitted = $7,
+    error_message = $8
 WHERE id = $1;

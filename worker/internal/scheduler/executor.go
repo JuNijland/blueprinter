@@ -16,6 +16,7 @@ import (
 	"github.com/blueprinter/worker/internal/blueprint"
 	"github.com/blueprinter/worker/internal/db/dbgen"
 	"github.com/blueprinter/worker/internal/differ"
+	"github.com/blueprinter/worker/internal/emitter"
 	"github.com/blueprinter/worker/internal/fetcher"
 )
 
@@ -25,14 +26,16 @@ const maxConsecutiveFailures = 3
 type Executor struct {
 	queries *dbgen.Queries
 	fetcher *fetcher.Client
+	emitter *emitter.Emitter
 	logger  *slog.Logger
 }
 
 // NewExecutor creates a new Executor.
-func NewExecutor(queries *dbgen.Queries, fetcher *fetcher.Client, logger *slog.Logger) *Executor {
+func NewExecutor(queries *dbgen.Queries, fetcher *fetcher.Client, emitter *emitter.Emitter, logger *slog.Logger) *Executor {
 	return &Executor{
 		queries: queries,
 		fetcher: fetcher,
+		emitter: emitter,
 		logger:  logger,
 	}
 }
@@ -53,7 +56,7 @@ func (e *Executor) Execute(ctx context.Context, watch *dbgen.GetDueWatchesRow) {
 	}
 
 	// Execute and handle result
-	stats, execErr := e.executeRun(ctx, watch, logger)
+	stats, execErr := e.executeRun(ctx, watch, run.ID, logger)
 
 	// 2. Complete the watch run
 	completeStatus := "completed"
@@ -70,6 +73,7 @@ func (e *Executor) Execute(ctx context.Context, watch *dbgen.GetDueWatchesRow) {
 		EntitiesNew:     pgInt4(stats.newCount),
 		EntitiesChanged: pgInt4(stats.changed),
 		EntitiesRemoved: pgInt4(stats.removed),
+		EventsEmitted:   pgInt4(stats.eventsEmitted),
 		ErrorMessage:    errorMsg,
 	}); err != nil {
 		logger.Error("failed to complete watch run", "error", err)
@@ -105,7 +109,7 @@ func (e *Executor) ExecuteByID(ctx context.Context, watchID string) (string, err
 
 	logger := e.logger.With("watch_id", watchID, "watch_name", watch.Name)
 
-	stats, execErr := e.executeRun(ctx, &dueRow, logger)
+	stats, execErr := e.executeRun(ctx, &dueRow, run.ID, logger)
 
 	completeStatus := "completed"
 	var errorMsg pgtype.Text
@@ -121,6 +125,7 @@ func (e *Executor) ExecuteByID(ctx context.Context, watchID string) (string, err
 		EntitiesNew:     pgInt4(stats.newCount),
 		EntitiesChanged: pgInt4(stats.changed),
 		EntitiesRemoved: pgInt4(stats.removed),
+		EventsEmitted:   pgInt4(stats.eventsEmitted),
 		ErrorMessage:    errorMsg,
 	}); err != nil {
 		logger.Error("failed to complete watch run", "error", err)
@@ -136,13 +141,14 @@ func (e *Executor) ExecuteByID(ctx context.Context, watchID string) (string, err
 }
 
 type runStats struct {
-	found    int
-	newCount int
-	changed  int
-	removed  int
+	found         int
+	newCount      int
+	changed       int
+	removed       int
+	eventsEmitted int
 }
 
-func (e *Executor) executeRun(ctx context.Context, watch *dbgen.GetDueWatchesRow, logger *slog.Logger) (runStats, error) {
+func (e *Executor) executeRun(ctx context.Context, watch *dbgen.GetDueWatchesRow, runID pgtype.UUID, logger *slog.Logger) (runStats, error) {
 	var stats runStats
 
 	// 1. Parse extraction rules from JSON
@@ -222,22 +228,27 @@ func (e *Executor) executeRun(ctx context.Context, watch *dbgen.GetDueWatchesRow
 		}
 	}
 
-	// 9. Upsert appeared + changed entities
+	// 9. Upsert appeared + changed entities, collecting entity IDs
+	entityIDs := make(map[string]pgtype.UUID)
+
 	for _, d := range diffResult.Appeared {
 		contentBytes, err := json.Marshal(d.Content)
 		if err != nil {
 			logger.Warn("failed to marshal entity content", "external_id", d.ExternalID, "error", err)
 			continue
 		}
-		if _, err := e.queries.UpsertEntity(ctx, dbgen.UpsertEntityParams{
+		entity, err := e.queries.UpsertEntity(ctx, dbgen.UpsertEntityParams{
 			OrgID:      watch.OrgID,
 			WatchID:    watch.ID,
 			SchemaType: watch.SchemaType,
 			ExternalID: d.ExternalID,
 			Content:    contentBytes,
-		}); err != nil {
+		})
+		if err != nil {
 			logger.Warn("failed to upsert appeared entity", "external_id", d.ExternalID, "error", err)
+			continue
 		}
+		entityIDs[d.ExternalID] = entity.ID
 	}
 
 	for _, d := range diffResult.Changed {
@@ -246,18 +257,26 @@ func (e *Executor) executeRun(ctx context.Context, watch *dbgen.GetDueWatchesRow
 			logger.Warn("failed to marshal entity content", "external_id", d.ExternalID, "error", err)
 			continue
 		}
-		if _, err := e.queries.UpsertEntity(ctx, dbgen.UpsertEntityParams{
+		entity, err := e.queries.UpsertEntity(ctx, dbgen.UpsertEntityParams{
 			OrgID:      watch.OrgID,
 			WatchID:    watch.ID,
 			SchemaType: watch.SchemaType,
 			ExternalID: d.ExternalID,
 			Content:    contentBytes,
-		}); err != nil {
+		})
+		if err != nil {
 			logger.Warn("failed to upsert changed entity", "external_id", d.ExternalID, "error", err)
+			continue
 		}
+		entityIDs[d.ExternalID] = entity.ID
 	}
 
 	// 10. Mark disappeared entities as stale
+	// Also collect their IDs from stored entities for event emission
+	for i := range storedEntities {
+		entityIDs[storedEntities[i].ExternalID] = storedEntities[i].ID
+	}
+
 	if len(diffResult.Disappeared) > 0 {
 		staleIDs := make([]string, len(diffResult.Disappeared))
 		for i, d := range diffResult.Disappeared {
@@ -270,6 +289,19 @@ func (e *Executor) executeRun(ctx context.Context, watch *dbgen.GetDueWatchesRow
 			logger.Warn("failed to mark entities stale", "error", err)
 		}
 	}
+
+	// 11. Emit events for diff results
+	eventsEmitted, err := e.emitter.EmitDiffEvents(ctx, emitter.EmitContext{
+		OrgID:      watch.OrgID,
+		WatchID:    watch.ID,
+		WatchRunID: runID,
+	}, &diffResult, entityIDs)
+	if err != nil {
+		logger.Warn("failed to emit events", "error", err)
+	}
+	stats.eventsEmitted = eventsEmitted
+
+	logger.Info("events emitted", "count", eventsEmitted)
 
 	return stats, nil
 }

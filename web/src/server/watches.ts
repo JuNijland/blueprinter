@@ -2,7 +2,7 @@
 
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { db } from "@/db";
-import { watches, watchRuns, entities, blueprints } from "@/db/schema";
+import { watches, watchRuns, entities, blueprints, events } from "@/db/schema";
 import { eq, and, isNull, desc, sql } from "drizzle-orm";
 import { workerTriggerRun } from "@/lib/worker-client";
 
@@ -162,6 +162,16 @@ export async function listWatchRuns(watchId: string) {
     .where(and(eq(watchRuns.watchId, watchId), eq(watchRuns.orgId, orgId)))
     .orderBy(desc(watchRuns.startedAt))
     .limit(20);
+}
+
+export async function listWatchEvents(watchId: string) {
+  const orgId = await getOrgId();
+  return db
+    .select()
+    .from(events)
+    .where(and(eq(events.watchId, watchId), eq(events.orgId, orgId)))
+    .orderBy(desc(events.occurredAt))
+    .limit(50);
 }
 
 export async function listWatchEntities(watchId: string) {

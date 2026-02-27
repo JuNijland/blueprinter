@@ -19,7 +19,8 @@ SET status = $2,
     entities_new = $4,
     entities_changed = $5,
     entities_removed = $6,
-    error_message = $7
+    events_emitted = $7,
+    error_message = $8
 WHERE id = $1
 `
 
@@ -30,6 +31,7 @@ type CompleteWatchRunParams struct {
 	EntitiesNew     pgtype.Int4 `json:"entities_new"`
 	EntitiesChanged pgtype.Int4 `json:"entities_changed"`
 	EntitiesRemoved pgtype.Int4 `json:"entities_removed"`
+	EventsEmitted   pgtype.Int4 `json:"events_emitted"`
 	ErrorMessage    pgtype.Text `json:"error_message"`
 }
 
@@ -41,6 +43,7 @@ func (q *Queries) CompleteWatchRun(ctx context.Context, arg CompleteWatchRunPara
 		arg.EntitiesNew,
 		arg.EntitiesChanged,
 		arg.EntitiesRemoved,
+		arg.EventsEmitted,
 		arg.ErrorMessage,
 	)
 	return err
@@ -49,7 +52,7 @@ func (q *Queries) CompleteWatchRun(ctx context.Context, arg CompleteWatchRunPara
 const createWatchRun = `-- name: CreateWatchRun :one
 INSERT INTO watch_runs (org_id, watch_id, status, started_at)
 VALUES ($1, $2, 'running', now())
-RETURNING id, org_id, watch_id, status, started_at, completed_at, entities_found, entities_new, entities_changed, entities_removed, error_message
+RETURNING id, org_id, watch_id, status, started_at, completed_at, entities_found, entities_new, entities_changed, entities_removed, events_emitted, error_message
 `
 
 type CreateWatchRunParams struct {
@@ -71,6 +74,7 @@ func (q *Queries) CreateWatchRun(ctx context.Context, arg CreateWatchRunParams) 
 		&i.EntitiesNew,
 		&i.EntitiesChanged,
 		&i.EntitiesRemoved,
+		&i.EventsEmitted,
 		&i.ErrorMessage,
 	)
 	return i, err
