@@ -10,7 +10,6 @@ import {
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/sources": "Sources",
   "/blueprints": "Blueprints",
   "/watches": "Watches",
   "/events": "Events",

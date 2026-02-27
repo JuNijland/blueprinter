@@ -2,7 +2,7 @@ export interface FieldMapping {
   xpath: string;
   type: "string" | "integer" | "number";
   attribute: string;
-  transform?: string;
+  expression?: string;
 }
 
 export interface ExtractionRules {

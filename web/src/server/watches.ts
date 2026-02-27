@@ -28,10 +28,11 @@ export async function listWatches() {
       createdAt: watches.createdAt,
       blueprintName: blueprints.name,
       blueprintId: watches.blueprintId,
-      lastRunAt:
-        sql<string | null>`(SELECT started_at FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 1)`.as(
-          "last_run_at"
-        ),
+      lastRunAt: sql<
+        string | null
+      >`(SELECT started_at FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 1)`.as(
+        "last_run_at",
+      ),
     })
     .from(watches)
     .leftJoin(blueprints, eq(watches.blueprintId, blueprints.id))
@@ -61,24 +62,20 @@ export async function getWatch(id: string) {
       updatedAt: watches.updatedAt,
       blueprintName: blueprints.name,
       blueprintSchemaType: blueprints.schemaType,
-      lastRunAt:
-        sql<string | null>`(SELECT started_at FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 1)`.as(
-          "last_run_at"
-        ),
-      lastError:
-        sql<string | null>`(SELECT error_message FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 1)`.as(
-          "last_error"
-        ),
+      lastRunAt: sql<
+        string | null
+      >`(SELECT started_at FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 1)`.as(
+        "last_run_at",
+      ),
+      lastError: sql<
+        string | null
+      >`(SELECT error_message FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 1)`.as(
+        "last_error",
+      ),
     })
     .from(watches)
     .leftJoin(blueprints, eq(watches.blueprintId, blueprints.id))
-    .where(
-      and(
-        eq(watches.id, id),
-        eq(watches.orgId, orgId),
-        isNull(watches.deletedAt)
-      )
-    )
+    .where(and(eq(watches.id, id), eq(watches.orgId, orgId), isNull(watches.deletedAt)))
     .limit(1);
   const row = rows[0];
   if (!row) return null;
@@ -118,7 +115,8 @@ export async function updateWatch(
     url: string;
     schedule: string;
     identityFields: string[];
-  }>
+    blueprintId: string;
+  }>,
 ) {
   const orgId = await getOrgId();
   await db
@@ -172,11 +170,7 @@ export async function listWatchEntities(watchId: string) {
     .select()
     .from(entities)
     .where(
-      and(
-        eq(entities.watchId, watchId),
-        eq(entities.orgId, orgId),
-        eq(entities.status, "active")
-      )
+      and(eq(entities.watchId, watchId), eq(entities.orgId, orgId), eq(entities.status, "active")),
     )
     .orderBy(desc(entities.lastSeenAt));
 }
@@ -188,13 +182,7 @@ export async function triggerWatchRun(watchId: string) {
   const watch = await db
     .select({ id: watches.id })
     .from(watches)
-    .where(
-      and(
-        eq(watches.id, watchId),
-        eq(watches.orgId, orgId),
-        isNull(watches.deletedAt)
-      )
-    )
+    .where(and(eq(watches.id, watchId), eq(watches.orgId, orgId), isNull(watches.deletedAt)))
     .limit(1);
 
   if (!watch[0]) {

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Globe,
   FileCode,
   Eye,
   Zap,
@@ -40,7 +39,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const navItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Sources", href: "/sources", icon: Globe },
   { title: "Blueprints", href: "/blueprints", icon: FileCode },
   { title: "Watches", href: "/watches", icon: Eye },
   { title: "Events", href: "/events", icon: Zap },
@@ -140,7 +138,11 @@ export function AppSidebar({
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href || pathname.startsWith(item.href + "/")} tooltip={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                    tooltip={item.title}
+                  >
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.title}</span>

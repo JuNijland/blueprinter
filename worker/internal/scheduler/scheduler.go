@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	pollInterval = 30 * time.Second
+	pollInterval  = 30 * time.Second
 	maxConcurrent = 5
 )
 
@@ -66,14 +66,14 @@ func (s *Scheduler) poll(ctx context.Context) {
 	sem := make(chan struct{}, maxConcurrent)
 	var wg sync.WaitGroup
 
-	for _, w := range watches {
+	for i := range watches {
 		wg.Add(1)
 		sem <- struct{}{}
-		go func(watch dbgen.GetDueWatchesRow) {
+		go func(watch *dbgen.GetDueWatchesRow) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			s.executor.Execute(ctx, watch)
-		}(w)
+		}(&watches[i])
 	}
 
 	wg.Wait()

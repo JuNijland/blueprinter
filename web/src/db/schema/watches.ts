@@ -1,11 +1,4 @@
-import {
-  pgTable,
-  text,
-  uuid,
-  timestamp,
-  integer,
-  index,
-} from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { blueprints } from "./blueprints";
 
@@ -29,12 +22,8 @@ export const watches = pgTable(
     status: text("status").notNull().default("active"),
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),
     consecutiveFailures: integer("consecutive_failures").notNull().default(0),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
@@ -43,11 +32,9 @@ export const watches = pgTable(
       .where(sql`${table.deletedAt} IS NULL`),
     index("idx_watches_next_run")
       .on(table.nextRunAt)
-      .where(
-        sql`${table.status} = 'active' AND ${table.deletedAt} IS NULL`
-      ),
+      .where(sql`${table.status} = 'active' AND ${table.deletedAt} IS NULL`),
     index("idx_watches_blueprint_id")
       .on(table.blueprintId)
       .where(sql`${table.deletedAt} IS NULL`),
-  ]
+  ],
 );

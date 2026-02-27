@@ -26,6 +26,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.playwright-mcp/
 
 # TypeScript
 *.tsbuildinfo
@@ -35,3 +36,4 @@ drizzle/
 
 # Docker volumes
 pgdata/
+

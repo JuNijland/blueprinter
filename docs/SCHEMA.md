@@ -5,9 +5,8 @@ All tables include `org_id` for multitenancy. All primary keys are UUIDv7. All t
 ## ER Diagram
 
 ```
-sources ──< blueprints
-sources ──< entities
 blueprints ──< watches
+watches ──< entities
 watches ──< events
 entities ──< events
 events ──< deliveries
@@ -18,37 +17,6 @@ subscriptions ──< deliveries
 
 ## Tables
 
-### sources
-
-External websites/platforms we extract data from.
-
-```sql
-CREATE TABLE sources (
-    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id          text NOT NULL,
-    name            text NOT NULL,
-    base_url        text NOT NULL,
-    description     text,
-    settings        jsonb NOT NULL DEFAULT '{}',  -- rate limit overrides, headers, etc.
-    created_at      timestamptz NOT NULL DEFAULT now(),
-    updated_at      timestamptz NOT NULL DEFAULT now()
-
-    UNIQUE (org_id, base_url)
-);
-
-CREATE INDEX idx_sources_org_id ON sources (org_id) WHERE deleted_at IS NULL;
-```
-
-`settings` example:
-```json
-{
-  "request_delay_ms": 3000,
-  "custom_headers": { "Accept-Language": "nl-NL" }
-}
-```
-
----
-
 ### blueprints
 
 Extraction rules for pulling structured entities from a page.
@@ -57,9 +25,8 @@ Extraction rules for pulling structured entities from a page.
 CREATE TABLE blueprints (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id          text NOT NULL,
-    source_id       uuid NOT NULL REFERENCES sources(id),
     name            text NOT NULL,
-    url_pattern     text NOT NULL,          -- Which URLs can information be extracted from by this blueprint.
+    url             text NOT NULL,           -- test URL used to generate/test the blueprint
     schema_type     text NOT NULL,          -- 'ecommerce_product', 'job_vacancy'
     extraction_rules jsonb NOT NULL,        -- XPath mappings
     status          text NOT NULL DEFAULT 'draft',  -- draft, active, failed, archived
@@ -71,7 +38,6 @@ CREATE TABLE blueprints (
 );
 
 CREATE INDEX idx_blueprints_org_id ON blueprints (org_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_blueprints_source_id ON blueprints (source_id) WHERE deleted_at IS NULL;
 ```
 
 `extraction_rules` example for an e-commerce product list:
@@ -101,7 +67,7 @@ Tracked structured records from sources. Stores current state; history is recons
 CREATE TABLE entities (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id          text NOT NULL,
-    source_id       uuid NOT NULL REFERENCES sources(id),
+    watch_id        uuid NOT NULL REFERENCES watches(id),
     schema_type     text NOT NULL,
     external_id     text NOT NULL,          -- derived from source (SKU, URL slug, etc.)
     content         jsonb NOT NULL,         -- current entity state matching schema
@@ -113,13 +79,13 @@ CREATE TABLE entities (
     updated_at      timestamptz NOT NULL DEFAULT now(),
 
     CONSTRAINT chk_entity_status CHECK (status IN ('active', 'stale', 'removed')),
-    UNIQUE (org_id, source_id, schema_type, external_id)
+    UNIQUE (org_id, watch_id, schema_type, external_id)
 );
 
 CREATE INDEX idx_entities_org_id ON entities (org_id);
-CREATE INDEX idx_entities_source_id ON entities (source_id);
+CREATE INDEX idx_entities_watch_id ON entities (watch_id);
 CREATE INDEX idx_entities_status ON entities (org_id, status);
-CREATE INDEX idx_entities_external_id ON entities (org_id, source_id, external_id);
+CREATE INDEX idx_entities_external_id ON entities (org_id, watch_id, external_id);
 ```
 
 `content` example for `ecommerce_product`:
@@ -148,7 +114,6 @@ Scheduled jobs that periodically extract and diff entities from a URL.
 CREATE TABLE watches (
     id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id                text NOT NULL,
-    source_id             uuid NOT NULL REFERENCES sources(id),
     blueprint_id          uuid NOT NULL REFERENCES blueprints(id),
     name                  text NOT NULL,
     url                   text NOT NULL,           -- specific URL to monitor
@@ -168,7 +133,6 @@ CREATE TABLE watches (
 CREATE INDEX idx_watches_org_id ON watches (org_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_watches_next_run ON watches (next_run_at)
     WHERE status = 'active' AND deleted_at IS NULL;
-CREATE INDEX idx_watches_source_id ON watches (source_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_watches_blueprint_id ON watches (blueprint_id) WHERE deleted_at IS NULL;
 ```
 
@@ -241,7 +205,6 @@ CREATE TABLE subscriptions (
     org_id          text NOT NULL,
     name            text NOT NULL,
     event_types     text[] NOT NULL,        -- array of event types to subscribe to
-    source_id       uuid REFERENCES sources(id),    -- optional: scope to source
     watch_id        uuid REFERENCES watches(id),    -- optional: scope to watch
     filters         jsonb NOT NULL DEFAULT '{}',    -- optional field-level filters
     channel_type    text NOT NULL,          -- webhook, email, slack
@@ -333,8 +296,7 @@ WHERE org_id = $1
   AND status = 'active'
   AND deleted_at IS NULL
   AND $2 = ANY(event_types)                          -- event type matches
-  AND (source_id IS NULL OR source_id = $3)          -- source scope matches
-  AND (watch_id IS NULL OR watch_id = $4);           -- watch scope matches
+  AND (watch_id IS NULL OR watch_id = $3);           -- watch scope matches
 ```
 
 Filter evaluation (the `filters` JSONB) happens in application code after the SQL query, since filter logic is more complex (field-level change direction, percentage thresholds, etc.).
@@ -344,14 +306,13 @@ Filter evaluation (the `filters` JSONB) happens in application code after the SQ
 ## Migration Order
 
 ```
-001_create_sources.sql
-002_create_blueprints.sql
+001_create_blueprints.sql
+002_create_watches.sql
 003_create_entities.sql
-004_create_watches.sql
-005_create_watch_runs.sql
-006_create_events.sql
-007_create_subscriptions.sql
-008_create_deliveries.sql
+004_create_watch_runs.sql
+005_create_events.sql
+006_create_subscriptions.sql
+007_create_deliveries.sql
 ```
 
 ---
@@ -362,4 +323,4 @@ Filter evaluation (the `filters` JSONB) happens in application code after the SQ
 - **No entity history table**: Entity history is reconstructed by replaying events. If this becomes a performance problem, we can add a materialized history table later.
 - **Prices as integers**: All monetary values stored in smallest currency unit (cents) to avoid floating point issues.
 - **UUIDv7**: Time-sortable UUIDs give us natural ordering without needing a separate `created_at` index for most queries. Use `uuid_generate_v7()` or generate in application code.
-- **Soft deletes**: Sources, blueprints, watches, and subscriptions use `deleted_at`. Events, deliveries, entities, and watch_runs are never soft-deleted (they're append-only / immutable).
+- **Soft deletes**: Blueprints, watches, and subscriptions use `deleted_at`. Events, deliveries, entities, and watch_runs are never soft-deleted (they're append-only / immutable).

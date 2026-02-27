@@ -1,7 +1,8 @@
 import Link from "next/link";
+import cronstrue from "cronstrue";
+import { Calendar } from "lucide-react";
 import { listWatches } from "@/server/watches";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -10,15 +11,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Status, StatusIndicator, StatusLabel, type StatusType } from "@/components/ui/status";
 
-const statusVariant: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  active: "default",
-  paused: "secondary",
-  error: "destructive",
-};
+function getWatchStatusType(status: string): StatusType {
+  switch (status) {
+    case "active":
+      return "online";
+    case "paused":
+      return "maintenance";
+    case "error":
+      return "offline";
+    default:
+      return "degraded";
+  }
+}
+
+function getWatchStatusLabel(status: string): string {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 export default async function WatchesPage() {
   const items = await listWatches();
@@ -53,10 +63,9 @@ export default async function WatchesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>URL</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Blueprint</TableHead>
                 <TableHead>Schedule</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>Last Run</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
@@ -64,33 +73,35 @@ export default async function WatchesPage() {
             <TableBody>
               {items.map((w) => (
                 <TableRow key={w.id}>
+                  <TableCell className="font-medium">
+                    <div>
+                      <Link href={`/watches/${w.id}`} className="hover:underline">
+                        {w.name}
+                      </Link>
+                      <div className="text-xs text-muted-foreground mt-0.5 max-w-[250px] truncate">
+                        {w.url}
+                      </div>
+                    </div>
+                  </TableCell>
                   <TableCell>
-                    <Link
-                      href={`/watches/${w.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {w.name}
-                    </Link>
+                    <Status status={getWatchStatusType(w.status)}>
+                      <StatusIndicator />
+                      <StatusLabel>{getWatchStatusLabel(w.status)}</StatusLabel>
+                    </Status>
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                    {w.url}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {w.blueprintName ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">{w.schedule}</TableCell>
+                  <TableCell className="text-sm">{w.blueprintName ?? "—"}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[w.status] ?? "secondary"}>
-                      {w.status}
-                    </Badge>
+                    <p className="text-sm">{cronstrue.toString(w.schedule)}</p>
+                    <p className="text-xs font-mono text-muted-foreground">{w.schedule}</p>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {w.lastRunAt
-                      ? w.lastRunAt.toLocaleDateString()
-                      : "Never"}
+                    {w.lastRunAt ? w.lastRunAt.toLocaleString() : "Never"}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {w.createdAt.toLocaleDateString()}
+                  <TableCell>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {w.createdAt.toLocaleDateString()}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

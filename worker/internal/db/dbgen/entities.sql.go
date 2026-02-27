@@ -67,6 +67,23 @@ func (q *Queries) MarkEntitiesStale(ctx context.Context, arg MarkEntitiesStalePa
 	return err
 }
 
+const touchEntitiesLastSeen = `-- name: TouchEntitiesLastSeen :exec
+UPDATE entities
+SET last_seen_at = now(), updated_at = now()
+WHERE watch_id = $1 AND external_id = ANY($2::text[])
+  AND status = 'active'
+`
+
+type TouchEntitiesLastSeenParams struct {
+	WatchID pgtype.UUID `json:"watch_id"`
+	Column2 []string    `json:"column_2"`
+}
+
+func (q *Queries) TouchEntitiesLastSeen(ctx context.Context, arg TouchEntitiesLastSeenParams) error {
+	_, err := q.db.Exec(ctx, touchEntitiesLastSeen, arg.WatchID, arg.Column2)
+	return err
+}
+
 const upsertEntity = `-- name: UpsertEntity :one
 INSERT INTO entities (org_id, watch_id, schema_type, external_id, content, url, status, first_seen_at, last_seen_at)
 VALUES ($1, $2, $3, $4, $5, $6, 'active', now(), now())

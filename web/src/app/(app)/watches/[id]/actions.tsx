@@ -2,99 +2,165 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Play, Pause, Trash2, RotateCw, Eye, AlertTriangle, Pencil } from "lucide-react";
 import {
-  pauseWatch,
-  resumeWatch,
-  deleteWatch,
-  triggerWatchRun,
-} from "@/server/watches";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { ActionMenuTrigger } from "@/components/ui/action-menu-trigger";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { pauseWatch, resumeWatch, deleteWatch, triggerWatchRun } from "@/server/watches";
 
-export function WatchActions({
-  watchId,
-  status,
+export function WatchRunActions({
+  errorMessage,
 }: {
-  watchId: string;
-  status: string;
+  errorMessage: string | null;
 }) {
+  const [errorOpen, setErrorOpen] = useState(false);
+
+  if (!errorMessage) return null;
+
+  return (
+    <>
+      <DropdownMenu>
+        <ActionMenuTrigger />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setErrorOpen(true)}>
+            <AlertTriangle className="mr-2 h-4 w-4" />
+            View Error
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={errorOpen} onOpenChange={setErrorOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Run Error</DialogTitle>
+            <DialogDescription>Full error message from this run.</DialogDescription>
+          </DialogHeader>
+          <pre className="max-h-[400px] overflow-auto rounded-md bg-muted p-4 text-sm whitespace-pre-wrap break-words">
+            {errorMessage}
+          </pre>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+export function EntityActions({
+  externalId,
+  content,
+}: {
+  externalId: string;
+  content: unknown;
+}) {
+  const [contentOpen, setContentOpen] = useState(false);
+  const formatted = JSON.stringify(content, null, 2);
+
+  return (
+    <>
+      <DropdownMenu>
+        <ActionMenuTrigger />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setContentOpen(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            View Content
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={contentOpen} onOpenChange={setContentOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Entity Content</DialogTitle>
+            <DialogDescription className="font-mono">{externalId}</DialogDescription>
+          </DialogHeader>
+          <pre className="max-h-[500px] overflow-auto rounded-md bg-muted p-4 text-sm whitespace-pre-wrap break-words">
+            {formatted}
+          </pre>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+export function WatchActions({ watchId, status }: { watchId: string; status: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState("");
 
-  async function handleAction(
-    action: () => Promise<void>,
-    actionName: string
-  ) {
+  async function handleAction(action: () => Promise<void>, actionName: string) {
     setLoading(actionName);
-    setError("");
     try {
       await action();
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : `${actionName} failed`);
     } finally {
       setLoading(null);
     }
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2">
-        {status === "active" ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={loading !== null}
-            onClick={() =>
-              handleAction(() => pauseWatch(watchId), "Pausing")
-            }
-          >
-            {loading === "Pausing" ? "Pausing..." : "Pause"}
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={loading !== null}
-            onClick={() =>
-              handleAction(() => resumeWatch(watchId), "Resuming")
-            }
-          >
-            {loading === "Resuming" ? "Resuming..." : "Resume"}
-          </Button>
-        )}
+    <DropdownMenu>
+      <ActionMenuTrigger />
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => router.push(`/watches/${watchId}/edit`)}>
+          <Pencil className="mr-2 h-4 w-4" />
+          Edit
+        </DropdownMenuItem>
 
-        <Button
-          variant="outline"
-          size="sm"
+        <DropdownMenuItem
           disabled={loading !== null}
           onClick={() =>
             handleAction(async () => {
               await triggerWatchRun(watchId);
-            }, "Triggering")
+            }, "trigger")
           }
         >
-          {loading === "Triggering" ? "Triggering..." : "Trigger Run"}
-        </Button>
+          <RotateCw className="mr-2 h-4 w-4" />
+          {loading === "trigger" ? "Triggering..." : "Trigger Run"}
+        </DropdownMenuItem>
 
-        <Button
+        {status === "active" ? (
+          <DropdownMenuItem
+            disabled={loading !== null}
+            onClick={() => handleAction(() => pauseWatch(watchId), "pause")}
+          >
+            <Pause className="mr-2 h-4 w-4" />
+            {loading === "pause" ? "Pausing..." : "Pause"}
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            disabled={loading !== null}
+            onClick={() => handleAction(() => resumeWatch(watchId), "resume")}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            {loading === "resume" ? "Resuming..." : "Resume"}
+          </DropdownMenuItem>
+        )}
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem
           variant="destructive"
-          size="sm"
           disabled={loading !== null}
           onClick={() =>
             handleAction(async () => {
               await deleteWatch(watchId);
               router.push("/watches");
-            }, "Deleting")
+            }, "delete")
           }
         >
-          {loading === "Deleting" ? "Deleting..." : "Delete"}
-        </Button>
-      </div>
-
-      {error && (
-        <p className="text-sm text-destructive">{error}</p>
-      )}
-    </div>
+          <Trash2 className="mr-2 h-4 w-4" />
+          {loading === "delete" ? "Deleting..." : "Delete"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

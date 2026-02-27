@@ -56,7 +56,7 @@ export async function workerTestBlueprint(
 
 export async function workerTriggerRun(
   orgId: string,
-  watchId: string
+  watchId: string,
 ): Promise<{ run_id: string }> {
   return workerRequest("/api/run-watch", {
     org_id: orgId,

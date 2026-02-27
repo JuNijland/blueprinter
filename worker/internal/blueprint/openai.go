@@ -75,11 +75,29 @@ RULES:
 2. Each field XPath is RELATIVE to the container (MUST start with ./ or .//)
 3. XPath expressions must be specific — avoid bare //div or //span
 4. When data spans sibling rows, use ./following-sibling::
-5. For prices, use "type": "integer" with "transform": "extract_integer" to get cents
-6. For ratings, use "type": "number" with "transform": "extract_number"
-7. For image URLs, use "attribute": "src"
-8. For link URLs, use "attribute": "href"
-9. Default "attribute" is "text" (extracts inner text)
+5. Integer fields automatically extract digits from the raw text — no expression needed for simple cases
+6. Number fields automatically extract numeric values (digits + decimal point) — no expression needed for simple cases
+7. String fields are automatically trimmed
+8. Use "expression" only when custom transformation is needed (e.g. European decimals, conditional logic, currency stripping)
+12. If a field from the schema CANNOT be found in the HTML, OMIT it entirely from "fields". Do NOT fabricate default values, use xpath ".", or hardcode constants. Only include fields that have real, extractable data in the HTML.
+9. For image URLs, use "attribute": "src"
+10. For link URLs, use "attribute": "href"
+11. Default "attribute" is "text" (extracts inner text)
+
+EXPRESSION LANGUAGE (optional, for advanced cases):
+The "expression" field uses expr-lang. The raw extracted string is available as "value".
+Built-in: trim(), replace(), upper(), lower(), split(), join(), contains, ternary (? :), int(), float()
+Custom: extractNumber(s) returns float64, extractInteger(s) returns int
+CRITICAL: Expressions can ONLY use the "value" variable. NEVER put XPath syntax inside expressions.
+If you need data from multiple child elements, point the field XPath at their common parent — the "text" attribute returns ALL inner text concatenated.
+Examples:
+- "int(extractNumber(replace(value, ',', '.')) * 100)" — European decimal to cents
+- "value contains 'In Stock' ? 'in_stock' : 'out_of_stock'" — conditional
+- "trim(replace(replace(value, '€', ''), '$', ''))" — strip currency symbols
+
+PRICE HANDLING:
+- If the price is split across child elements (e.g. whole part in one span, decimals in a sup), use an XPath to the PARENT element so "text" captures everything (e.g. "€29,95")
+- Then use: "int(extractNumber(replace(value, ',', '.')) * 100)" to convert to cents
 
 OUTPUT FORMAT (JSON only):
 {
@@ -89,7 +107,7 @@ OUTPUT FORMAT (JSON only):
       "xpath": "./relative/xpath",
       "type": "string|integer|number",
       "attribute": "text|href|src|alt",
-      "transform": "trim|extract_number|extract_integer"
+      "expression": "optional expr-lang expression"
     }
   }
 }
@@ -99,7 +117,7 @@ EXAMPLE — product listing:
   "container": "//div[contains(@class, 'product-item')]",
   "fields": {
     "name": {"xpath": ".//h3[contains(@class, 'title')]", "type": "string", "attribute": "text"},
-    "price": {"xpath": ".//span[contains(@class, 'price')]", "type": "integer", "attribute": "text", "transform": "extract_integer"},
+    "price": {"xpath": ".//span[contains(@class, 'price')]", "type": "integer", "attribute": "text"},
     "currency": {"xpath": ".//span[contains(@class, 'currency')]", "type": "string", "attribute": "text"},
     "image_url": {"xpath": ".//img[contains(@class, 'product-image')]", "type": "string", "attribute": "src"},
     "seller": {"xpath": ".//span[contains(@class, 'seller')]", "type": "string", "attribute": "text"}
@@ -112,7 +130,7 @@ EXAMPLE — data spanning sibling rows:
   "fields": {
     "title": {"xpath": ".//span[@class='titleline']/a", "type": "string", "attribute": "text"},
     "url": {"xpath": ".//span[@class='titleline']/a", "type": "string", "attribute": "href"},
-    "score": {"xpath": "./following-sibling::tr[1]//span[@class='score']", "type": "integer", "attribute": "text", "transform": "extract_integer"}
+    "score": {"xpath": "./following-sibling::tr[1]//span[@class='score']", "type": "integer", "attribute": "text"}
   }
 }`
 
@@ -124,7 +142,7 @@ ENTITY SCHEMA:
 HTML TO ANALYZE:
 %s
 
-Generate the container XPath and field XPaths. Every field in the schema MUST have a corresponding entry in "fields". If a field cannot be found in the HTML, still include it with your best guess XPath.`, fieldsDesc, cleanedHTML)
+Generate the container XPath and field XPaths. Only include fields that have real, extractable data in the HTML. Omit any field that cannot be found.`, fieldsDesc, cleanedHTML)
 
 	reqBody := chatRequest{
 		Model: c.model,
@@ -155,6 +173,11 @@ Generate the container XPath and field XPaths. Every field in the schema MUST ha
 	}
 	if len(rules.Fields) == 0 {
 		return nil, fmt.Errorf("OpenAI returned no field mappings")
+	}
+
+	// Validate that all expressions compile before returning.
+	if _, err := compileExpressions(rules.Fields); err != nil {
+		return nil, fmt.Errorf("generated rules have invalid expressions: %w", err)
 	}
 
 	c.logger.Info("extraction rules generated", "container", rules.Container, "fields", len(rules.Fields))

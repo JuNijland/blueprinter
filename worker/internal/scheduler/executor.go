@@ -38,7 +38,7 @@ func NewExecutor(queries *dbgen.Queries, fetcher *fetcher.Client, logger *slog.L
 }
 
 // Execute runs a single watch from a GetDueWatchesRow.
-func (e *Executor) Execute(ctx context.Context, watch dbgen.GetDueWatchesRow) {
+func (e *Executor) Execute(ctx context.Context, watch *dbgen.GetDueWatchesRow) {
 	logger := e.logger.With("watch_id", uuidToString(watch.ID), "watch_name", watch.Name)
 	logger.Info("executing watch run")
 
@@ -101,27 +101,11 @@ func (e *Executor) ExecuteByID(ctx context.Context, watchID string) (string, err
 	}
 
 	// Convert to DueWatchesRow for shared execution logic
-	dueRow := dbgen.GetDueWatchesRow{
-		ID:                  watch.ID,
-		OrgID:               watch.OrgID,
-		BlueprintID:         watch.BlueprintID,
-		Name:                watch.Name,
-		Url:                 watch.Url,
-		Schedule:            watch.Schedule,
-		IdentityFields:      watch.IdentityFields,
-		Status:              watch.Status,
-		NextRunAt:           watch.NextRunAt,
-		ConsecutiveFailures: watch.ConsecutiveFailures,
-		CreatedAt:           watch.CreatedAt,
-		UpdatedAt:           watch.UpdatedAt,
-		DeletedAt:           watch.DeletedAt,
-		ExtractionRules:     watch.ExtractionRules,
-		SchemaType:          watch.SchemaType,
-	}
+	dueRow := dbgen.GetDueWatchesRow(watch)
 
 	logger := e.logger.With("watch_id", watchID, "watch_name", watch.Name)
 
-	stats, execErr := e.executeRun(ctx, dueRow, logger)
+	stats, execErr := e.executeRun(ctx, &dueRow, logger)
 
 	completeStatus := "completed"
 	var errorMsg pgtype.Text
@@ -142,7 +126,7 @@ func (e *Executor) ExecuteByID(ctx context.Context, watchID string) (string, err
 		logger.Error("failed to complete watch run", "error", err)
 	}
 
-	e.updateWatchAfterRun(ctx, dueRow, execErr, logger)
+	e.updateWatchAfterRun(ctx, &dueRow, execErr, logger)
 
 	runID := uuidToString(run.ID)
 	if execErr != nil {
@@ -158,7 +142,7 @@ type runStats struct {
 	removed  int
 }
 
-func (e *Executor) executeRun(ctx context.Context, watch dbgen.GetDueWatchesRow, logger *slog.Logger) (runStats, error) {
+func (e *Executor) executeRun(ctx context.Context, watch *dbgen.GetDueWatchesRow, logger *slog.Logger) (runStats, error) {
 	var stats runStats
 
 	// 1. Parse extraction rules from JSON
@@ -202,13 +186,13 @@ func (e *Executor) executeRun(ctx context.Context, watch dbgen.GetDueWatchesRow,
 	}
 
 	stored := make(map[string]map[string]any, len(storedEntities))
-	for _, se := range storedEntities {
+	for i := range storedEntities {
 		var content map[string]any
-		if err := json.Unmarshal(se.Content, &content); err != nil {
-			logger.Warn("failed to unmarshal stored entity", "entity_id", uuidToString(se.ID), "error", err)
+		if err := json.Unmarshal(storedEntities[i].Content, &content); err != nil {
+			logger.Warn("failed to unmarshal stored entity", "entity_id", uuidToString(storedEntities[i].ID), "error", err)
 			continue
 		}
-		stored[se.ExternalID] = content
+		stored[storedEntities[i].ExternalID] = content
 	}
 
 	// 7. Run differ
@@ -224,7 +208,21 @@ func (e *Executor) executeRun(ctx context.Context, watch dbgen.GetDueWatchesRow,
 		"unchanged", diffResult.Unchanged,
 	)
 
-	// 8. Upsert appeared + changed entities
+	// 8. Touch last_seen_at for all extracted entities (appeared, changed, and unchanged)
+	allExtractedIDs := make([]string, 0, len(extracted))
+	for eid := range extracted {
+		allExtractedIDs = append(allExtractedIDs, eid)
+	}
+	if len(allExtractedIDs) > 0 {
+		if err := e.queries.TouchEntitiesLastSeen(ctx, dbgen.TouchEntitiesLastSeenParams{
+			WatchID: watch.ID,
+			Column2: allExtractedIDs,
+		}); err != nil {
+			logger.Warn("failed to touch entities last_seen_at", "error", err)
+		}
+	}
+
+	// 9. Upsert appeared + changed entities
 	for _, d := range diffResult.Appeared {
 		contentBytes, err := json.Marshal(d.Content)
 		if err != nil {
@@ -259,7 +257,7 @@ func (e *Executor) executeRun(ctx context.Context, watch dbgen.GetDueWatchesRow,
 		}
 	}
 
-	// 9. Mark disappeared entities as stale
+	// 10. Mark disappeared entities as stale
 	if len(diffResult.Disappeared) > 0 {
 		staleIDs := make([]string, len(diffResult.Disappeared))
 		for i, d := range diffResult.Disappeared {
@@ -276,7 +274,7 @@ func (e *Executor) executeRun(ctx context.Context, watch dbgen.GetDueWatchesRow,
 	return stats, nil
 }
 
-func (e *Executor) updateWatchAfterRun(ctx context.Context, watch dbgen.GetDueWatchesRow, execErr error, logger *slog.Logger) {
+func (e *Executor) updateWatchAfterRun(ctx context.Context, watch *dbgen.GetDueWatchesRow, execErr error, logger *slog.Logger) {
 	now := time.Now()
 	failures := watch.ConsecutiveFailures
 	status := watch.Status

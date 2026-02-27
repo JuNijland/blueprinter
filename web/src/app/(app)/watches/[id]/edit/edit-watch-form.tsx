@@ -13,28 +13,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createWatch } from "@/server/watches";
+import { updateWatch } from "@/server/watches";
 import { type BlueprintOption, SCHEDULE_PRESETS } from "@/lib/watch-constants";
 
-export function NewWatchForm({ blueprints }: { blueprints: BlueprintOption[] }) {
+interface EditWatchFormProps {
+  watch: {
+    id: string;
+    name: string;
+    url: string;
+    blueprintId: string;
+    schedule: string;
+  };
+  blueprints: BlueprintOption[];
+}
+
+function isPresetSchedule(schedule: string): boolean {
+  return SCHEDULE_PRESETS.some((p) => p.value === schedule);
+}
+
+export function EditWatchForm({ watch, blueprints }: EditWatchFormProps) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
-  const [blueprintId, setBlueprintId] = useState("");
-  const [schedule, setSchedule] = useState("0 * * * *");
-  const [customSchedule, setCustomSchedule] = useState("");
-  const [useCustomSchedule, setUseCustomSchedule] = useState(false);
-  const [identityFields, setIdentityFields] = useState("name");
+  const [name, setName] = useState(watch.name);
+  const [url, setUrl] = useState(watch.url);
+  const [blueprintId, setBlueprintId] = useState(watch.blueprintId);
+  const [schedule, setSchedule] = useState(
+    isPresetSchedule(watch.schedule) ? watch.schedule : "0 * * * *",
+  );
+  const [customSchedule, setCustomSchedule] = useState(watch.schedule);
+  const [useCustomSchedule, setUseCustomSchedule] = useState(!isPresetSchedule(watch.schedule));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  function handleBlueprintChange(value: string) {
-    setBlueprintId(value);
-    const bp = blueprints.find((b) => b.id === value);
-    if (bp && !url) {
-      setUrl(bp.url);
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,19 +50,15 @@ export function NewWatchForm({ blueprints }: { blueprints: BlueprintOption[] }) 
     setError("");
 
     try {
-      const watch = await createWatch({
-        blueprintId,
+      await updateWatch(watch.id, {
         name,
         url,
+        blueprintId,
         schedule: useCustomSchedule ? customSchedule : schedule,
-        identityFields: identityFields
-          .split(",")
-          .map((f) => f.trim())
-          .filter(Boolean),
       });
       router.push(`/watches/${watch.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create watch");
+      setError(err instanceof Error ? err.message : "Failed to update watch");
       setSaving(false);
     }
   }
@@ -96,7 +100,7 @@ export function NewWatchForm({ blueprints }: { blueprints: BlueprintOption[] }) 
                 No blueprints available. Create a blueprint first.
               </p>
             ) : (
-              <Select value={blueprintId} onValueChange={handleBlueprintChange}>
+              <Select value={blueprintId} onValueChange={setBlueprintId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select a blueprint" />
                 </SelectTrigger>
@@ -164,26 +168,12 @@ export function NewWatchForm({ blueprints }: { blueprints: BlueprintOption[] }) 
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="identityFields">Identity Fields</Label>
-            <Input
-              id="identityFields"
-              value={identityFields}
-              onChange={(e) => setIdentityFields(e.target.value)}
-              placeholder="name"
-            />
-            <p className="text-xs text-muted-foreground">
-              Comma-separated field names used to uniquely identify each entity (e.g.
-              &quot;name&quot; or &quot;name,seller&quot;).
-            </p>
-          </div>
-
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button type="button" variant="outline" onClick={() => router.push(`/watches/${watch.id}`)}>
               Cancel
             </Button>
             <Button type="submit" disabled={!isValid || saving}>
-              {saving ? "Creating..." : "Create Watch"}
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </CardContent>

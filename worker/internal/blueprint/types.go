@@ -13,7 +13,7 @@ type FieldMapping struct {
 	XPath     string `json:"xpath"`
 	Type      string `json:"type"`                // string, integer, number
 	Attribute string `json:"attribute"`           // text, href, src, etc.
-	Transform string `json:"transform,omitempty"` // trim, extract_number, extract_integer
+	Expression string `json:"expression,omitempty"` // expr-lang expression; value is the raw extracted string
 }
 
 // EntitySchema defines the expected shape of extracted entities.

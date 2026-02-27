@@ -86,7 +86,7 @@ Blueprinter is an event-driven data broker that monitors web pages for changes t
 
 ### Database / Migrations
 
-- Migration files live in `/migrations/` as plain SQL: `001_create_sources.sql`, `002_create_blueprints.sql`, etc.
+- Migration files live in `/migrations/` as plain SQL: `001_create_blueprints.sql`, `002_create_watches.sql`, etc.
 - Each migration file has `-- +goose Up` and `-- +goose Down` sections (goose format)
 - Drizzle schema in `web/src/db/schema/` must mirror the migration state
 - sqlc queries in `worker/internal/db/queries/` must match the same schema

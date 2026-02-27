@@ -14,9 +14,9 @@ type FieldChange struct {
 
 // EntityDiff describes the difference between two states of an entity.
 type EntityDiff struct {
-	ExternalID string        `json:"external_id"`
-	Type       string        `json:"type"` // "appeared", "disappeared", "changed"
-	Changes    []FieldChange `json:"changes,omitempty"`
+	ExternalID string         `json:"external_id"`
+	Type       string         `json:"type"` // "appeared", "disappeared", "changed"
+	Changes    []FieldChange  `json:"changes,omitempty"`
 	Content    map[string]any `json:"content,omitempty"` // full content for appeared entities
 }
 
