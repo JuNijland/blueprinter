@@ -15,8 +15,10 @@ import (
 	"github.com/blueprinter/worker/internal/config"
 	"github.com/blueprinter/worker/internal/db"
 	"github.com/blueprinter/worker/internal/db/dbgen"
+	"github.com/blueprinter/worker/internal/delivery"
 	"github.com/blueprinter/worker/internal/emitter"
 	"github.com/blueprinter/worker/internal/fetcher"
+	"github.com/blueprinter/worker/internal/matcher"
 	"github.com/blueprinter/worker/internal/scheduler"
 )
 
@@ -56,8 +58,10 @@ func run(logger *slog.Logger) error {
 
 	openaiClient := blueprint.NewOpenAIClient(cfg.OpenAIAPIKey, cfg.OpenAIModel, logger)
 
-	// Emitter
+	// Emitter + Matcher
 	eventEmitter := emitter.New(queries, logger)
+	eventMatcher := matcher.New(queries, logger)
+	eventEmitter.SetMatcher(eventMatcher)
 
 	// Scheduler
 	executor := scheduler.NewExecutor(queries, fetcherClient, eventEmitter, logger)
@@ -68,6 +72,16 @@ func run(logger *slog.Logger) error {
 	srv := api.NewServer(cfg.Port, cfg.WorkerAPIKey, handlers, logger)
 
 	errCh := make(chan error, 1)
+
+	// Start delivery processor if Resend is configured
+	if cfg.ResendAPIKey != "" {
+		sender := delivery.NewResendSender(cfg.ResendAPIKey, cfg.ResendFromEmail)
+		processor := delivery.NewProcessor(queries, sender, logger)
+		go processor.Run(ctx)
+		logger.Info("delivery processor enabled", "from_email", cfg.ResendFromEmail)
+	} else {
+		logger.Info("delivery processor disabled (RESEND_API_KEY not set)")
+	}
 
 	// Start scheduler in background
 	go sched.Run(ctx)

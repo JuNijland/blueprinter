@@ -13,6 +13,8 @@ type Config struct {
 	FirecrawlAPIKey string
 	OpenAIAPIKey    string
 	OpenAIModel     string
+	ResendAPIKey    string
+	ResendFromEmail string
 }
 
 // Load parses configuration from environment variables.
@@ -24,6 +26,8 @@ func Load() (*Config, error) {
 		FirecrawlAPIKey: os.Getenv("FIRECRAWL_API_KEY"),
 		OpenAIAPIKey:    os.Getenv("OPENAI_API_KEY"),
 		OpenAIModel:     getEnv("OPENAI_MODEL", "gpt-4o-mini"),
+		ResendAPIKey:    os.Getenv("RESEND_API_KEY"),
+		ResendFromEmail: getEnv("RESEND_FROM_EMAIL", "Blueprinter <notifications@notify.blueprinter.io>"),
 	}
 
 	if cfg.DatabaseURL == "" {

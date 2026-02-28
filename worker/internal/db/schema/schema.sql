@@ -73,3 +73,32 @@ CREATE TABLE events (
     payload         jsonb NOT NULL,
     occurred_at     timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE subscriptions (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id          text NOT NULL,
+    name            text NOT NULL,
+    event_types     text[] NOT NULL,
+    watch_id        uuid REFERENCES watches(id),
+    filters         jsonb NOT NULL DEFAULT '{}',
+    channel_type    text NOT NULL DEFAULT 'email',
+    channel_config  jsonb NOT NULL,
+    status          text NOT NULL DEFAULT 'active',
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    deleted_at      timestamptz
+);
+
+CREATE TABLE deliveries (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id          text NOT NULL,
+    event_id        uuid NOT NULL REFERENCES events(id),
+    subscription_id uuid NOT NULL REFERENCES subscriptions(id),
+    status          text NOT NULL DEFAULT 'pending',
+    attempts        integer NOT NULL DEFAULT 0,
+    max_attempts    integer NOT NULL DEFAULT 5,
+    next_retry_at   timestamptz NOT NULL DEFAULT now(),
+    last_error      text,
+    delivered_at    timestamptz,
+    created_at      timestamptz NOT NULL DEFAULT now()
+);

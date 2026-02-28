@@ -22,6 +22,20 @@ type Blueprint struct {
 	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type Delivery struct {
+	ID             pgtype.UUID        `json:"id"`
+	OrgID          string             `json:"org_id"`
+	EventID        pgtype.UUID        `json:"event_id"`
+	SubscriptionID pgtype.UUID        `json:"subscription_id"`
+	Status         string             `json:"status"`
+	Attempts       int32              `json:"attempts"`
+	MaxAttempts    int32              `json:"max_attempts"`
+	NextRetryAt    pgtype.Timestamptz `json:"next_retry_at"`
+	LastError      pgtype.Text        `json:"last_error"`
+	DeliveredAt    pgtype.Timestamptz `json:"delivered_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
 type Entity struct {
 	ID          pgtype.UUID        `json:"id"`
 	OrgID       string             `json:"org_id"`
@@ -46,6 +60,21 @@ type Event struct {
 	EntityID   pgtype.UUID        `json:"entity_id"`
 	Payload    []byte             `json:"payload"`
 	OccurredAt pgtype.Timestamptz `json:"occurred_at"`
+}
+
+type Subscription struct {
+	ID            pgtype.UUID        `json:"id"`
+	OrgID         string             `json:"org_id"`
+	Name          string             `json:"name"`
+	EventTypes    []string           `json:"event_types"`
+	WatchID       pgtype.UUID        `json:"watch_id"`
+	Filters       []byte             `json:"filters"`
+	ChannelType   string             `json:"channel_type"`
+	ChannelConfig []byte             `json:"channel_config"`
+	Status        string             `json:"status"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Watch struct {

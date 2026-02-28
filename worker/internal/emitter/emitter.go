@@ -12,9 +12,15 @@ import (
 	"github.com/blueprinter/worker/internal/differ"
 )
 
+// Matcher creates delivery rows for matching subscriptions.
+type Matcher interface {
+	CreateDeliveries(ctx context.Context, event dbgen.Event) error
+}
+
 // Emitter persists change events detected by the differ.
 type Emitter struct {
 	queries *dbgen.Queries
+	matcher Matcher
 	logger  *slog.Logger
 }
 
@@ -24,6 +30,11 @@ func New(queries *dbgen.Queries, logger *slog.Logger) *Emitter {
 		queries: queries,
 		logger:  logger,
 	}
+}
+
+// SetMatcher sets the matcher for subscription matching after event emission.
+func (e *Emitter) SetMatcher(m Matcher) {
+	e.matcher = m
 }
 
 // EmitContext provides the context for emitting events.
@@ -47,16 +58,18 @@ func (e *Emitter) EmitDiffEvents(ctx context.Context, ec EmitContext, diff *diff
 		}
 
 		entityID := entityIDs[d.ExternalID]
-		if _, err := e.queries.InsertEvent(ctx, dbgen.InsertEventParams{
+		event, err := e.queries.InsertEvent(ctx, dbgen.InsertEventParams{
 			OrgID:      ec.OrgID,
 			EventType:  "entity_appeared",
 			WatchID:    ec.WatchID,
 			WatchRunID: ec.WatchRunID,
 			EntityID:   entityID,
 			Payload:    payload,
-		}); err != nil {
+		})
+		if err != nil {
 			return count, fmt.Errorf("inserting entity_appeared event: %w", err)
 		}
+		e.matchEvent(ctx, event)
 		count++
 	}
 
@@ -68,16 +81,18 @@ func (e *Emitter) EmitDiffEvents(ctx context.Context, ec EmitContext, diff *diff
 		}
 
 		entityID := entityIDs[d.ExternalID]
-		if _, err := e.queries.InsertEvent(ctx, dbgen.InsertEventParams{
+		event, err := e.queries.InsertEvent(ctx, dbgen.InsertEventParams{
 			OrgID:      ec.OrgID,
 			EventType:  "entity_changed",
 			WatchID:    ec.WatchID,
 			WatchRunID: ec.WatchRunID,
 			EntityID:   entityID,
 			Payload:    payload,
-		}); err != nil {
+		})
+		if err != nil {
 			return count, fmt.Errorf("inserting entity_changed event: %w", err)
 		}
+		e.matchEvent(ctx, event)
 		count++
 	}
 
@@ -89,20 +104,37 @@ func (e *Emitter) EmitDiffEvents(ctx context.Context, ec EmitContext, diff *diff
 		}
 
 		entityID := entityIDs[d.ExternalID]
-		if _, err := e.queries.InsertEvent(ctx, dbgen.InsertEventParams{
+		event, err := e.queries.InsertEvent(ctx, dbgen.InsertEventParams{
 			OrgID:      ec.OrgID,
 			EventType:  "entity_disappeared",
 			WatchID:    ec.WatchID,
 			WatchRunID: ec.WatchRunID,
 			EntityID:   entityID,
 			Payload:    payload,
-		}); err != nil {
+		})
+		if err != nil {
 			return count, fmt.Errorf("inserting entity_disappeared event: %w", err)
 		}
+		e.matchEvent(ctx, event)
 		count++
 	}
 
 	return count, nil
+}
+
+// matchEvent calls the matcher to create deliveries for the given event.
+// Errors are logged but do not fail event emission.
+func (e *Emitter) matchEvent(ctx context.Context, event dbgen.Event) {
+	if e.matcher == nil {
+		return
+	}
+	if err := e.matcher.CreateDeliveries(ctx, event); err != nil {
+		e.logger.Warn("failed to create deliveries for event",
+			"event_id", event.ID,
+			"event_type", event.EventType,
+			"error", err,
+		)
+	}
 }
 
 // appearedPayload is the JSON structure for entity_appeared events.
