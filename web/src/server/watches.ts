@@ -6,6 +6,24 @@ import { watches, watchRuns, entities, blueprints, events } from "@/db/schema";
 import { eq, and, isNull, desc, sql } from "drizzle-orm";
 import { workerTriggerRun } from "@/lib/worker-client";
 
+export type WatchHealth = "operational" | "degraded" | "error";
+
+function computeHealth(statuses: string[]): WatchHealth {
+  if (statuses.length === 0) return "operational";
+  const allCompleted = statuses.every((s) => s === "completed");
+  if (allCompleted) return "operational";
+  const allFailed = statuses.every((s) => s === "failed");
+  if (allFailed) return "error";
+  return "degraded";
+}
+
+function computeHealthDetail(statuses: string[]): string {
+  if (statuses.length === 0) return "No runs yet";
+  const succeeded = statuses.filter((s) => s === "completed").length;
+  const total = statuses.length;
+  return `${succeeded}/${total} recent runs succeeded`;
+}
+
 async function getOrgId(): Promise<string> {
   const { organizationId } = await withAuth({ ensureSignedIn: true });
   if (!organizationId) {
@@ -24,7 +42,6 @@ export async function listWatches() {
       schedule: watches.schedule,
       status: watches.status,
       nextRunAt: watches.nextRunAt,
-      consecutiveFailures: watches.consecutiveFailures,
       createdAt: watches.createdAt,
       blueprintName: blueprints.name,
       blueprintId: watches.blueprintId,
@@ -32,6 +49,11 @@ export async function listWatches() {
         string | null
       >`(SELECT started_at FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 1)`.as(
         "last_run_at",
+      ),
+      recentRunStatuses: sql<
+        string[]
+      >`(SELECT COALESCE(array_agg(status ORDER BY started_at DESC), '{}') FROM (SELECT status, started_at FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 5) t)`.as(
+        "recent_run_statuses",
       ),
     })
     .from(watches)
@@ -41,6 +63,8 @@ export async function listWatches() {
   return rows.map((r) => ({
     ...r,
     lastRunAt: r.lastRunAt ? new Date(r.lastRunAt) : null,
+    health: computeHealth(r.recentRunStatuses ?? []),
+    healthDetail: computeHealthDetail(r.recentRunStatuses ?? []),
   }));
 }
 
@@ -57,7 +81,6 @@ export async function getWatch(id: string) {
       identityFields: watches.identityFields,
       status: watches.status,
       nextRunAt: watches.nextRunAt,
-      consecutiveFailures: watches.consecutiveFailures,
       createdAt: watches.createdAt,
       updatedAt: watches.updatedAt,
       blueprintName: blueprints.name,
@@ -72,6 +95,11 @@ export async function getWatch(id: string) {
       >`(SELECT error_message FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 1)`.as(
         "last_error",
       ),
+      recentRunStatuses: sql<
+        string[]
+      >`(SELECT COALESCE(array_agg(status ORDER BY started_at DESC), '{}') FROM (SELECT status, started_at FROM watch_runs WHERE watch_id = ${watches.id} ORDER BY started_at DESC LIMIT 5) t)`.as(
+        "recent_run_statuses",
+      ),
     })
     .from(watches)
     .leftJoin(blueprints, eq(watches.blueprintId, blueprints.id))
@@ -82,6 +110,8 @@ export async function getWatch(id: string) {
   return {
     ...row,
     lastRunAt: row.lastRunAt ? new Date(row.lastRunAt) : null,
+    health: computeHealth(row.recentRunStatuses ?? []),
+    healthDetail: computeHealthDetail(row.recentRunStatuses ?? []),
   };
 }
 
@@ -141,13 +171,12 @@ export async function pauseWatch(id: string) {
     .where(and(eq(watches.id, id), eq(watches.orgId, orgId)));
 }
 
-export async function resumeWatch(id: string) {
+export async function unpauseWatch(id: string) {
   const orgId = await getOrgId();
   await db
     .update(watches)
     .set({
       status: "active",
-      consecutiveFailures: 0,
       nextRunAt: new Date(),
       updatedAt: new Date(),
     })

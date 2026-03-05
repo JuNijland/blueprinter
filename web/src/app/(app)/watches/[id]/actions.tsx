@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { pauseWatch, resumeWatch, deleteWatch, triggerWatchRun } from "@/server/watches";
+import { pauseWatch, unpauseWatch, deleteWatch, triggerWatchRun } from "@/server/watches";
 
 export function WatchRunActions({ errorMessage }: { errorMessage: string | null }) {
   const [errorOpen, setErrorOpen] = useState(false);
@@ -159,7 +159,7 @@ export function WatchActions({ watchId, status }: { watchId: string; status: str
         ) : (
           <DropdownMenuItem
             disabled={loading !== null}
-            onClick={() => handleAction(() => resumeWatch(watchId), "resume")}
+            onClick={() => handleAction(() => unpauseWatch(watchId), "resume")}
           >
             <Play className="mr-2 h-4 w-4" />
             {loading === "resume" ? "Resuming..." : "Resume"}

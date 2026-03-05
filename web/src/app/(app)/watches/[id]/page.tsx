@@ -15,19 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Status, StatusIndicator, StatusLabel, type StatusType } from "@/components/ui/status";
 import { WatchActions, WatchRunActions, EntityActions, EventActions } from "./actions";
-
-function getWatchStatusType(status: string): StatusType {
-  switch (status) {
-    case "active":
-      return "online";
-    case "paused":
-      return "maintenance";
-    case "error":
-      return "offline";
-    default:
-      return "degraded";
-  }
-}
+import { HealthBadge } from "../health-badge";
 
 function getRunStatusType(status: string): StatusType {
   switch (status) {
@@ -104,12 +92,13 @@ export default async function WatchDetailPage({ params }: { params: Promise<{ id
       <Card>
         <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="text-xs text-muted-foreground">Status</p>
+            <p className="text-xs text-muted-foreground">Health</p>
             <div className="mt-1">
-              <Status status={getWatchStatusType(watch.status)}>
-                <StatusIndicator />
-                <StatusLabel>{getStatusLabel(watch.status)}</StatusLabel>
-              </Status>
+              <HealthBadge
+                status={watch.status}
+                health={watch.health}
+                healthDetail={watch.healthDetail}
+              />
             </div>
           </div>
           <div>

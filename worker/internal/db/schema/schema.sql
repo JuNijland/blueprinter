@@ -25,7 +25,6 @@ CREATE TABLE watches (
     identity_fields       text[] NOT NULL DEFAULT ARRAY['name']::text[],
     status                text NOT NULL DEFAULT 'active',
     next_run_at           timestamptz,
-    consecutive_failures  integer NOT NULL DEFAULT 0,
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now(),
     deleted_at            timestamptz

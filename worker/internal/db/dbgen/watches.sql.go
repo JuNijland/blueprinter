@@ -12,7 +12,7 @@ import (
 )
 
 const getDueWatches = `-- name: GetDueWatches :many
-SELECT w.id, w.org_id, w.blueprint_id, w.name, w.url, w.schedule, w.identity_fields, w.status, w.next_run_at, w.consecutive_failures, w.created_at, w.updated_at, w.deleted_at, b.extraction_rules, b.schema_type
+SELECT w.id, w.org_id, w.blueprint_id, w.name, w.url, w.schedule, w.identity_fields, w.status, w.next_run_at, w.created_at, w.updated_at, w.deleted_at, b.extraction_rules, b.schema_type
 FROM watches w
 JOIN blueprints b ON b.id = w.blueprint_id
 WHERE w.status = 'active'
@@ -23,21 +23,20 @@ LIMIT 50
 `
 
 type GetDueWatchesRow struct {
-	ID                  pgtype.UUID        `json:"id"`
-	OrgID               string             `json:"org_id"`
-	BlueprintID         pgtype.UUID        `json:"blueprint_id"`
-	Name                string             `json:"name"`
-	Url                 string             `json:"url"`
-	Schedule            string             `json:"schedule"`
-	IdentityFields      []string           `json:"identity_fields"`
-	Status              string             `json:"status"`
-	NextRunAt           pgtype.Timestamptz `json:"next_run_at"`
-	ConsecutiveFailures int32              `json:"consecutive_failures"`
-	CreatedAt           pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt           pgtype.Timestamptz `json:"deleted_at"`
-	ExtractionRules     []byte             `json:"extraction_rules"`
-	SchemaType          string             `json:"schema_type"`
+	ID              pgtype.UUID        `json:"id"`
+	OrgID           string             `json:"org_id"`
+	BlueprintID     pgtype.UUID        `json:"blueprint_id"`
+	Name            string             `json:"name"`
+	Url             string             `json:"url"`
+	Schedule        string             `json:"schedule"`
+	IdentityFields  []string           `json:"identity_fields"`
+	Status          string             `json:"status"`
+	NextRunAt       pgtype.Timestamptz `json:"next_run_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	ExtractionRules []byte             `json:"extraction_rules"`
+	SchemaType      string             `json:"schema_type"`
 }
 
 func (q *Queries) GetDueWatches(ctx context.Context) ([]GetDueWatchesRow, error) {
@@ -59,7 +58,6 @@ func (q *Queries) GetDueWatches(ctx context.Context) ([]GetDueWatchesRow, error)
 			&i.IdentityFields,
 			&i.Status,
 			&i.NextRunAt,
-			&i.ConsecutiveFailures,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -77,28 +75,27 @@ func (q *Queries) GetDueWatches(ctx context.Context) ([]GetDueWatchesRow, error)
 }
 
 const getWatchByID = `-- name: GetWatchByID :one
-SELECT w.id, w.org_id, w.blueprint_id, w.name, w.url, w.schedule, w.identity_fields, w.status, w.next_run_at, w.consecutive_failures, w.created_at, w.updated_at, w.deleted_at, b.extraction_rules, b.schema_type
+SELECT w.id, w.org_id, w.blueprint_id, w.name, w.url, w.schedule, w.identity_fields, w.status, w.next_run_at, w.created_at, w.updated_at, w.deleted_at, b.extraction_rules, b.schema_type
 FROM watches w
 JOIN blueprints b ON b.id = w.blueprint_id
 WHERE w.id = $1 AND w.deleted_at IS NULL
 `
 
 type GetWatchByIDRow struct {
-	ID                  pgtype.UUID        `json:"id"`
-	OrgID               string             `json:"org_id"`
-	BlueprintID         pgtype.UUID        `json:"blueprint_id"`
-	Name                string             `json:"name"`
-	Url                 string             `json:"url"`
-	Schedule            string             `json:"schedule"`
-	IdentityFields      []string           `json:"identity_fields"`
-	Status              string             `json:"status"`
-	NextRunAt           pgtype.Timestamptz `json:"next_run_at"`
-	ConsecutiveFailures int32              `json:"consecutive_failures"`
-	CreatedAt           pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt           pgtype.Timestamptz `json:"deleted_at"`
-	ExtractionRules     []byte             `json:"extraction_rules"`
-	SchemaType          string             `json:"schema_type"`
+	ID              pgtype.UUID        `json:"id"`
+	OrgID           string             `json:"org_id"`
+	BlueprintID     pgtype.UUID        `json:"blueprint_id"`
+	Name            string             `json:"name"`
+	Url             string             `json:"url"`
+	Schedule        string             `json:"schedule"`
+	IdentityFields  []string           `json:"identity_fields"`
+	Status          string             `json:"status"`
+	NextRunAt       pgtype.Timestamptz `json:"next_run_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	ExtractionRules []byte             `json:"extraction_rules"`
+	SchemaType      string             `json:"schema_type"`
 }
 
 func (q *Queries) GetWatchByID(ctx context.Context, id pgtype.UUID) (GetWatchByIDRow, error) {
@@ -114,7 +111,6 @@ func (q *Queries) GetWatchByID(ctx context.Context, id pgtype.UUID) (GetWatchByI
 		&i.IdentityFields,
 		&i.Status,
 		&i.NextRunAt,
-		&i.ConsecutiveFailures,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -127,25 +123,16 @@ func (q *Queries) GetWatchByID(ctx context.Context, id pgtype.UUID) (GetWatchByI
 const updateWatchAfterRun = `-- name: UpdateWatchAfterRun :exec
 UPDATE watches
 SET next_run_at = $2,
-    consecutive_failures = $3,
-    status = $4,
     updated_at = now()
 WHERE id = $1
 `
 
 type UpdateWatchAfterRunParams struct {
-	ID                  pgtype.UUID        `json:"id"`
-	NextRunAt           pgtype.Timestamptz `json:"next_run_at"`
-	ConsecutiveFailures int32              `json:"consecutive_failures"`
-	Status              string             `json:"status"`
+	ID        pgtype.UUID        `json:"id"`
+	NextRunAt pgtype.Timestamptz `json:"next_run_at"`
 }
 
 func (q *Queries) UpdateWatchAfterRun(ctx context.Context, arg UpdateWatchAfterRunParams) error {
-	_, err := q.db.Exec(ctx, updateWatchAfterRun,
-		arg.ID,
-		arg.NextRunAt,
-		arg.ConsecutiveFailures,
-		arg.Status,
-	)
+	_, err := q.db.Exec(ctx, updateWatchAfterRun, arg.ID, arg.NextRunAt)
 	return err
 }

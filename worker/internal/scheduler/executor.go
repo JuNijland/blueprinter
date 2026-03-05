@@ -20,8 +20,6 @@ import (
 	"github.com/blueprinter/worker/internal/fetcher"
 )
 
-const maxConsecutiveFailures = 3
-
 // Executor handles single watch run execution.
 type Executor struct {
 	queries *dbgen.Queries
@@ -80,7 +78,7 @@ func (e *Executor) Execute(ctx context.Context, watch *dbgen.GetDueWatchesRow) {
 	}
 
 	// 3. Update watch metadata
-	e.updateWatchAfterRun(ctx, watch, execErr, logger)
+	e.updateWatchAfterRun(ctx, watch, logger)
 }
 
 // ExecuteByID runs a watch by its UUID string (for manual trigger).
@@ -131,7 +129,7 @@ func (e *Executor) ExecuteByID(ctx context.Context, watchID string) (string, err
 		logger.Error("failed to complete watch run", "error", err)
 	}
 
-	e.updateWatchAfterRun(ctx, &dueRow, execErr, logger)
+	e.updateWatchAfterRun(ctx, &dueRow, logger)
 
 	runID := uuidToString(run.ID)
 	if execErr != nil {
@@ -306,28 +304,12 @@ func (e *Executor) executeRun(ctx context.Context, watch *dbgen.GetDueWatchesRow
 	return stats, nil
 }
 
-func (e *Executor) updateWatchAfterRun(ctx context.Context, watch *dbgen.GetDueWatchesRow, execErr error, logger *slog.Logger) {
-	now := time.Now()
-	failures := watch.ConsecutiveFailures
-	status := watch.Status
-
-	if execErr != nil {
-		failures++
-		if failures >= maxConsecutiveFailures {
-			status = "error"
-			logger.Warn("watch circuit breaker tripped", "failures", failures)
-		}
-	} else {
-		failures = 0
-	}
-
-	nextRun := computeNextRun(watch.Schedule, now)
+func (e *Executor) updateWatchAfterRun(ctx context.Context, watch *dbgen.GetDueWatchesRow, logger *slog.Logger) {
+	nextRun := computeNextRun(watch.Schedule, time.Now())
 
 	if err := e.queries.UpdateWatchAfterRun(ctx, dbgen.UpdateWatchAfterRunParams{
-		ID:                  watch.ID,
-		NextRunAt:           pgtype.Timestamptz{Time: nextRun, Valid: true},
-		ConsecutiveFailures: failures,
-		Status:              status,
+		ID:        watch.ID,
+		NextRunAt: pgtype.Timestamptz{Time: nextRun, Valid: true},
 	}); err != nil {
 		logger.Error("failed to update watch after run", "error", err)
 	}

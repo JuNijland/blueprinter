@@ -78,19 +78,18 @@ type Subscription struct {
 }
 
 type Watch struct {
-	ID                  pgtype.UUID        `json:"id"`
-	OrgID               string             `json:"org_id"`
-	BlueprintID         pgtype.UUID        `json:"blueprint_id"`
-	Name                string             `json:"name"`
-	Url                 string             `json:"url"`
-	Schedule            string             `json:"schedule"`
-	IdentityFields      []string           `json:"identity_fields"`
-	Status              string             `json:"status"`
-	NextRunAt           pgtype.Timestamptz `json:"next_run_at"`
-	ConsecutiveFailures int32              `json:"consecutive_failures"`
-	CreatedAt           pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt           pgtype.Timestamptz `json:"deleted_at"`
+	ID             pgtype.UUID        `json:"id"`
+	OrgID          string             `json:"org_id"`
+	BlueprintID    pgtype.UUID        `json:"blueprint_id"`
+	Name           string             `json:"name"`
+	Url            string             `json:"url"`
+	Schedule       string             `json:"schedule"`
+	IdentityFields []string           `json:"identity_fields"`
+	Status         string             `json:"status"`
+	NextRunAt      pgtype.Timestamptz `json:"next_run_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type WatchRun struct {

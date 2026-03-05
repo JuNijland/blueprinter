@@ -11,24 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Status, StatusIndicator, StatusLabel, type StatusType } from "@/components/ui/status";
-
-function getWatchStatusType(status: string): StatusType {
-  switch (status) {
-    case "active":
-      return "online";
-    case "paused":
-      return "maintenance";
-    case "error":
-      return "offline";
-    default:
-      return "degraded";
-  }
-}
-
-function getWatchStatusLabel(status: string): string {
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
+import { HealthBadge } from "./health-badge";
 
 export default async function WatchesPage() {
   const items = await listWatches();
@@ -84,10 +67,11 @@ export default async function WatchesPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Status status={getWatchStatusType(w.status)}>
-                      <StatusIndicator />
-                      <StatusLabel>{getWatchStatusLabel(w.status)}</StatusLabel>
-                    </Status>
+                    <HealthBadge
+                      status={w.status}
+                      health={w.health}
+                      healthDetail={w.healthDetail}
+                    />
                   </TableCell>
                   <TableCell className="text-sm">{w.blueprintName ?? "—"}</TableCell>
                   <TableCell>

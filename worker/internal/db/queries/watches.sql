@@ -17,7 +17,5 @@ WHERE w.id = $1 AND w.deleted_at IS NULL;
 -- name: UpdateWatchAfterRun :exec
 UPDATE watches
 SET next_run_at = $2,
-    consecutive_failures = $3,
-    status = $4,
     updated_at = now()
 WHERE id = $1;

@@ -118,16 +118,15 @@ CREATE TABLE watches (
     name                  text NOT NULL,
     url                   text NOT NULL,           -- specific URL to monitor
     schedule              text NOT NULL,            -- cron expression
-    status                text NOT NULL DEFAULT 'active',  -- active, paused, error
+    status                text NOT NULL DEFAULT 'active',  -- active, paused (user intent only)
     last_run_at           timestamptz,
     next_run_at           timestamptz,
     last_error            text,
-    consecutive_failures  integer NOT NULL DEFAULT 0,
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now(),
     deleted_at            timestamptz,
 
-    CONSTRAINT chk_watch_status CHECK (status IN ('active', 'paused', 'error'))
+    CONSTRAINT chk_watch_status CHECK (status IN ('active', 'paused'))
 );
 
 CREATE INDEX idx_watches_org_id ON watches (org_id) WHERE deleted_at IS NULL;
@@ -135,6 +134,8 @@ CREATE INDEX idx_watches_next_run ON watches (next_run_at)
     WHERE status = 'active' AND deleted_at IS NULL;
 CREATE INDEX idx_watches_blueprint_id ON watches (blueprint_id) WHERE deleted_at IS NULL;
 ```
+
+**Health model:** Watch health is computed on-the-fly from the last 5 `watch_runs` statuses, not stored. Values: `operational` (all completed, or no runs yet), `degraded` (mix of completed/failed), `error` (all failed). The `status` column is user-intent only (`active`/`paused`) — the scheduler always runs active watches regardless of health.
 
 ---
 

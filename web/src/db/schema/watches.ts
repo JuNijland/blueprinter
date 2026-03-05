@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { blueprints } from "./blueprints";
 
@@ -21,7 +21,6 @@ export const watches = pgTable(
       .default(sql`ARRAY['name']::text[]`),
     status: text("status").notNull().default("active"),
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),
-    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
